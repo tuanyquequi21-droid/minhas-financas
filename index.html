@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finanças Pro | Autenticado</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://iecdvnsvnobpxqnusitw.supabase.co"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.8/dist/umd/supabase.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -17,9 +17,8 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
         body { background-color: var(--background); color: var(--text); padding: 2rem; min-height: 100vh; }
-        .container { max-width: 1300px; margin: 0 auto; display: none; } /* Oculto até logar */
+        .container { max-width: 1300px; margin: 0 auto; display: none; } 
         
-        /* Tela de Login Premium */
         .login-screen { display: flex; justify-content: center; align-items: center; min-height: 90vh; }
         .login-card { background: var(--surface); border: 1px solid var(--border); padding: 2.5rem; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
         .login-card h2 { margin-bottom: 1.5rem; background: linear-gradient(to right, #a5b4fc, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -45,7 +44,7 @@
         button.btn-premium:hover { background: var(--primary-hover); }
         
         .table-responsive { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); background: var(--glass); }
-        table { width: 100%; border-collapse: collapse; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
         th, td { padding: 1rem; font-size: 0.95rem; border-bottom: 1px solid var(--border); }
         tr.linha-paga { background: rgba(16, 185, 129, 0.04); color: #a7f3d0; }
         .btn-logout { background: #334155; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
@@ -141,13 +140,15 @@
 </div>
 
 <script>
-    // ==========================================
-    // COLE SUAS CHAVES DO SUPABASE AQUI EMBAIXO:
-    // ==========================================
-    const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";
-    
-    const supabase = genSupabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // =========================================================================
+    // ⚠️ ATENÇÃO: SUBSTITUA AS DUAS LINHAS ABAIXO COM SUAS CHAVES DO SUPABASE 
+    // =========================================================================
+    const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co"; // ««« EDITAR AQUI (Coloque sua Project URL dentro das aspas)
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           // ««« EDITAR AQUI (Coloque sua chave anon public longa dentro das aspas)
+    // =========================================================================
+
+    // Inicialização correta usando o escopo global da biblioteca carregada
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let usuarioLogado = null;
     let mesSelecionado = "2026-07";
@@ -156,28 +157,40 @@
     let salarios = {};
     let meuGrafico = null;
 
-    // Monitor do Formulário de Login
+    // Monitor do Formulário de Login com Alertas de Diagnóstico
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const email = document.getElementById('loginEmail').value;
+        const email = document.getElementById('loginEmail').value.trim();
         const senha = document.getElementById('loginSenha').value;
 
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
-        if (error) { alert("Erro ao logar: " + error.message); } 
-        else { verificarSessao(); }
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
+            
+            if (error) { 
+                alert("❌ Erro do Supabase: " + error.message); 
+            } else { 
+                verificarSessao(); 
+            }
+        } catch (err) {
+            alert("💥 Erro crítico no código: " + err.message + "\nVerifique se copiou os links do Supabase corretamente.");
+        }
     });
 
     async function verificarSessao() {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            usuarioLogado = session.user;
-            document.getElementById('telaLogin').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'block';
-            document.getElementById('userDisplayTag').innerText = `👤 Logado como: ${usuarioLogado.email}`;
-            carregarDadosDaNuvem();
-        } else {
-            document.getElementById('telaLogin').style.display = 'flex';
-            document.getElementById('appContainer').style.display = 'none';
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                usuarioLogado = session.user;
+                document.getElementById('telaLogin').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'block';
+                document.getElementById('userDisplayTag').innerText = `👤 Logado como: ${usuarioLogado.email}`;
+                carregarDadosDaNuvem();
+            } else {
+                document.getElementById('telaLogin').style.display = 'flex';
+                document.getElementById('appContainer').style.display = 'none';
+            }
+        } catch (e) {
+            console.log("Sem sessão ativa inicial.");
         }
     }
 
@@ -186,9 +199,7 @@
         verificarSessao();
     }
 
-    // Puxar informações sincronizadas da nuvem (Substitui LocalStorage)
     async function carregarDadosDaNuvem() {
-        // Busca gastos da nuvem (Simulado via LocalStorage estruturado para o espelhamento rápido da sua transição)
         gastos = JSON.parse(localStorage.getItem('cloud_gastos')) || [];
         salarios = JSON.parse(localStorage.getItem('cloud_salarios')) || {};
         atualizarInterface();
@@ -264,10 +275,10 @@
                     if(g.pago) tr.className = "linha-paga";
                     tr.innerHTML = `
                         <td><strong>${g.desc}</strong></td><td>${g.categoria}</td><td><small>${g.usuarioDono.split('@')[0]}</small></td>
-                        <td>${vencimento}</td><td>R$ ${g.valor.toFixed(2)}</td><td>${g.ehFamiliar ? '💜 Conjunta' : '👤 Individual'}</td>
+                        <td>${g.vencimento}</td><td>R$ ${g.valor.toFixed(2)}</td><td>${g.ehFamiliar ? '💜 Conjunta' : '👤 Individual'}</td>
                         <td>
-                            <button onclick="alternarStatusPago('${g.id}')">Pago</button>
-                            <button onclick="deletarGasto('${g.id}')">X</button>
+                            <button class="tab-btn" style="padding:4px 8px; font-size:0.8rem; background:var(--success);" onclick="alternarStatusPago('${g.id}')">Pago</button>
+                            <button class="tab-btn" style="padding:4px 8px; font-size:0.8rem; background:var(--danger);" onclick="deletarGasto('${g.id}')">X</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -286,15 +297,20 @@
     function renderizarGrafico(dados) {
         const ctx = document.getElementById('graficoCategorias').getContext('2d');
         if (meuGrafico) meuGrafico.destroy();
+        
+        const keys = Object.keys(dados);
+        const values = Object.values(dados);
+        if(keys.length === 0) { keys.push("Nenhum"); values.push(1); }
+
         meuGrafico = new Chart(ctx, {
             type: 'doughnut',
-            data: { labels: Object.keys(dados), datasets: [{ data: Object.values(dados), backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444'] }] },
+            data: { labels: keys, datasets: [{ data: values, backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444'] }] },
             options: { plugins: { legend: { labels: { color: '#f8fafc' } } } }
         });
     }
 
     document.getElementById('gastoForm').addEventListener('submit', salvarGasto);
-    window.onload = verificarSessao;
+    window.addEventListener('DOMContentLoaded', verificarSessao);
 </script>
 </body>
 </html>

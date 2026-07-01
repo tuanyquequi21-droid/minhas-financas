@@ -59,15 +59,15 @@
 <div class="login-screen" id="telaLogin">
     <div class="login-card">
         <h2>Acessar Sistema</h2>
-        <form id="loginForm">
+        <div id="loginFormFalso">
             <label style="font-size: 0.85rem; color: var(--text-muted);">E-mail</label>
             <input type="email" id="loginEmail" class="input-premium" required placeholder="seu@email.com">
             
             <label style="font-size: 0.85rem; color: var(--text-muted);">Senha</label>
             <input type="password" id="loginSenha" class="input-premium" required placeholder="••••••••">
             
-            <button type="submit" class="btn-premium" style="margin-top: 1rem;">Entrar</button>
-        </form>
+            <button type="button" class="btn-premium" style="margin-top: 1rem;" onclick="dispararLoginManual()">Entrar</button>
+        </div>
     </div>
 </div>
 
@@ -160,30 +160,7 @@
     let salarios = {};
     let meuGrafico = null;
 
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('loginEmail').value.trim();
-        const senha = document.getElementById('loginSenha').value;
-
-        try {
-            // Tenta conectar na nuvem primeiro
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
-            
-            if (!error && data && data.user) { 
-                usuarioLogado = data.user;
-                entrarNoSistema();
-            } else {
-                // DESVIO DE SEGURANÇA: Se der erro na nuvem, loga localmente para você não ficar travado!
-                console.log("Aviso: Entrando em modo local devido a restrição de rede.");
-                usuarioLogado = { email: email };
-                entrarNoSistema();
-            }
-        } catch (err) {
-            // Segundo desvio caso o link do Supabase esteja inacessível pelo navegador
-            usuarioLogado = { email: email };
-            entrarNoSistema();
-        }
-    });
+    document.getElementById('loginForm'
 
     function entrarNoSistema() {
         document.getElementById('telaLogin').style.display = 'none';

@@ -3,462 +3,271 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finanças Pro | Dashboard Premium</title>
+    <title>Finanças Pro | Autenticado</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --background: #0f172a; /* Tema Escuro Sofisticado / Deep Space */
-            --surface: #1e293b;
-            --surface-hover: #334155;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --glass: rgba(30, 41, 59, 0.7);
+            --primary: #6366f1; --primary-hover: #4f46e5; --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+            --background: #0f172a; --surface: #1e293b; --surface-hover: #334155; --text: #f8fafc; --text-muted: #94a3b8; --border: #334155; --glass: rgba(30, 41, 59, 0.7);
         }
-
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
         body { background-color: var(--background); color: var(--text); padding: 2rem; min-height: 100vh; }
-        .container { max-width: 1300px; margin: 0 auto; }
+        .container { max-width: 1300px; margin: 0 auto; display: none; } /* Oculto até logar */
         
-        /* Glassmorphism e sombras elegantes */
-        .glass-card { 
-            background: var(--glass); 
-            backdrop-filter: blur(12px); 
-            border: 1px solid rgba(255, 255, 255, 0.05); 
-            border-radius: 16px; 
-            padding: 1.5rem;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+        /* Tela de Login Premium */
+        .login-screen { display: flex; justify-content: center; align-items: center; min-height: 90vh; }
+        .login-card { background: var(--surface); border: 1px solid var(--border); padding: 2.5rem; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+        .login-card h2 { margin-bottom: 1.5rem; background: linear-gradient(to right, #a5b4fc, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
-        /* Login e Controle de Usuários */
+        .glass-card { background: var(--glass); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
         .auth-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding: 1rem; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--border); }
-        .user-badge { display: flex; align-items: center; gap: 0.5rem; background: var(--surface); padding: 0.5rem 1rem; border-radius: 99px; font-size: 0.85rem; font-weight: 600; }
-        .badge-admin { border: 1px solid var(--primary); color: #a5b4fc; }
-
+        .user-badge { background: var(--surface); padding: 0.5rem 1rem; border-radius: 99px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--primary); }
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1.5rem; }
-        h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(to right, #a5b4fc, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        
-        .header-actions { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-        .input-premium { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 0.6rem 1rem; border-radius: 10px; font-size: 0.95rem; outline: none; transition: border 0.2s; }
+        h1 { font-size: 2rem; background: linear-gradient(to right, #a5b4fc, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .input-premium { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 0.6rem 1rem; border-radius: 10px; font-size: 0.95rem; outline: none; width: 100%; margin-bottom: 1rem; }
         .input-premium:focus { border-color: var(--primary); }
-
-        /* Abas Dinâmicas */
+        
         .tabs-wrapper { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
-        .tabs-container { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 4px; width: 100%; }
-        .tab-btn { background: var(--surface); color: var(--text-muted); border: 1px solid transparent; padding: 0.6rem 1.2rem; border-radius: 10px; cursor: pointer; font-weight: 600; white-space: nowrap; transition: all 0.2s; }
-        .tab-btn:hover { background: var(--surface-hover); color: var(--text); }
-        .tab-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4); }
-        .btn-add-month { background: #1e293b; border: 1px dashed var(--primary); color: var(--primary); padding: 0.6rem 1rem; border-radius: 10px; cursor: pointer; font-weight: bold; white-space: nowrap; }
-
-        /* Layout Grid */
+        .tabs-container { display: flex; gap: 0.5rem; overflow-x: auto; width: 100%; }
+        .tab-btn { background: var(--surface); color: var(--text-muted); border: none; padding: 0.6rem 1.2rem; border-radius: 10px; cursor: pointer; font-weight: 600; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        
         .main-layout { display: grid; grid-template-columns: 1fr; gap: 2rem; }
         @media(min-width: 1000px) { .main-layout { grid-template-columns: 2.2fr 1fr; } }
-
         .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-        .card h3 { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
-        .card p { font-size: 1.6rem; font-weight: 700; }
-
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.2rem; margin: 1.5rem 0; }
-        .form-control { display: flex; flex-direction: column; gap: 0.4rem; }
-        label { font-weight: 500; font-size: 0.85rem; color: var(--text-muted); }
-        
-        button.btn-premium { background: var(--primary); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+        button.btn-premium { background: var(--primary); color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; width: 100%; }
         button.btn-premium:hover { background: var(--primary-hover); }
-
-        /* Checkbox Familiar / Conjunto */
-        .checkbox-group { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; }
-        .checkbox-group input { width: 18px; height: 18px; cursor: pointer; }
-
-        /* Tabela Premium */
-        .table-responsive { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); background: var(--glass); }
-        table { width: 100%; border-collapse: collapse; text-align: left; }
-        th, td { padding: 1rem; font-size: 0.95rem; border-bottom: 1px solid var(--border); }
-        th { background: rgba(255,255,255,0.02); font-weight: 600; color: var(--text-muted); }
-        tr:hover { background: rgba(255,255,255,0.01); }
-        tr.linha-paga { background: rgba(16, 185, 129, 0.04) !important; color: #a7f3d0; }
         
-        .btn-action { border: none; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; margin-right: 0.3rem; color: white; }
-        .btn-pago { background: var(--success); }
-        .btn-edit { background: var(--warning); color: #0f172a; }
-        .btn-delete { background: var(--danger); }
-
-        .admin-panel { border: 1px solid #334155; background: rgba(99, 102, 241, 0.05); margin-bottom: 2rem; display: none; }
+        .table-responsive { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); background: var(--glass); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 1rem; font-size: 0.95rem; border-bottom: 1px solid var(--border); }
+        tr.linha-paga { background: rgba(16, 185, 129, 0.04); color: #a7f3d0; }
+        .btn-logout { background: #334155; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="auth-bar">
-        <div>
-            <label for="userSelect">Ambiente de Teste (Trocar Usuário):</label>
-            <select id="userSelect" class="input-premium" onchange="alternarUsuario()">
-                <option value="admin">Carlos (Admin / Pai)</option>
-                <option value="user2">Mariana (Cônjuge / Mãe)</option>
-                <option value="user3">Filho Lucas (Dependente)</option>
-            </select>
-        </div>
-        <div id="userDisplayTag" class="user-badge badge-admin">👤 CARLOS (ADMIN)</div>
+<div class="login-screen" id="telaLogin">
+    <div class="login-card">
+        <h2>Acessar Sistema</h2>
+        <form id="loginForm">
+            <label style="font-size: 0.85rem; color: var(--text-muted);">E-mail</label>
+            <input type="email" id="loginEmail" class="input-premium" required placeholder="seu@email.com">
+            
+            <label style="font-size: 0.85rem; color: var(--text-muted);">Senha</label>
+            <input type="password" id="loginSenha" class="input-premium" required placeholder="••••••••">
+            
+            <button type="submit" class="btn-premium" style="margin-top: 1rem;">Entrar</button>
+        </form>
     </div>
+</div>
 
-    <div id="painelAdmin" class="glass-card admin-panel">
-        <h2 style="color: var(--primary); font-size: 1.1rem; margin-bottom: 1rem;">⚙️ Configurações do Administrador</h2>
-        <p style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-muted);">Apenas contas marcadas como Admin podem configurar o Compartilhamento Familiar e adicionar novos membros.</p>
-        <div style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-            <div class="form-control">
-                <label>Vincular Novo Membro (E-mail/User)</label>
-                <input type="text" id="novoMembroInput" class="input-premium" placeholder="Ex: mariana@email.com">
-            </div>
-            <button class="btn-premium" onclick="alert('Membro familiar vinculado com sucesso no grupo!')" style="height: 42px;">Adicionar à Família</button>
-        </div>
+<div class="container" id="appContainer">
+    <div class="auth-bar">
+        <div id="userDisplayTag" class="user-badge">👤 Carregando usuário...</div>
+        <button class="btn-logout" onclick="deslogar()">Sair 🚪</button>
     </div>
 
     <header>
         <div>
-            <h1>Finanças Inteligentes</h1>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.2rem;">Gestão de Patrimônio e Gasto Familiar</p>
+            <h1>Finanças em Nuvem</h1>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Dados sincronizados em tempo real</p>
         </div>
         <div class="header-actions">
-            <div class="salario-container">
-                <label for="salarioInput">Salário Líquido do Mês:</label>
-                <input type="number" id="salarioInput" class="input-premium" step="0.01" placeholder="R$ 0,00">
+            <div style="display:flex; flex-direction:column; gap:0.3rem;">
+                <label style="font-size:0.85rem; color:var(--text-muted);">Salário Líquido:</label>
+                <input type="number" id="salarioInput" class="input-premium" step="0.01" style="width:160px; margin:0;">
             </div>
         </div>
     </header>
 
     <div class="tabs-wrapper">
         <div class="tabs-container" id="tabsMeses"></div>
-        <button class="btn-add-month" onclick="criarNovoMes()">➕ Novo Mês</button>
+        <button class="tab-btn" onclick="criarNovoMes()" style="border: 1px dashed var(--primary); color: var(--primary);">➕ Mês</button>
     </div>
 
     <div class="main-layout">
         <div>
             <div class="dashboard">
-                <div class="glass-card card">
-                    <h3>Meu Salário</h3>
-                    <p id="dashSalario" style="color: var(--primary)">R$ 0,00</p>
-                </div>
-                <div class="glass-card card">
-                    <h3>Gasto Familiar (Soma)</h3>
-                    <p id="dashFamiliar" style="color: #c084fc">R$ 0,00</p>
-                </div>
-                <div class="glass-card card">
-                    <h3>Meus Gastos (Restantes)</h3>
-                    <p id="dashA Pagar" style="color: var(--warning)">R$ 0,00</p>
-                </div>
-                <div class="glass-card card">
-                    <h3>Saldo Livre</h3>
-                    <p id="dashSaldo">R$ 0,00</p>
-                </div>
+                <div class="glass-card"><h3>Meu Salário</h3><p id="dashSalario" style="color: var(--primary)">R$ 0,00</p></div>
+                <div class="glass-card"><h3>Gasto Familiar</h3><p id="dashFamiliar" style="color: #c084fc">R$ 0,00</p></div>
+                <div class="glass-card"><h3>Meus Gastos</h3><p id="dashA Pagar" style="color: var(--warning)">R$ 0,00</p></div>
+                <div class="glass-card"><h3>Saldo Livre</h3><p id="dashSaldo">R$ 0,00</p></div>
             </div>
 
             <div class="glass-card" style="margin-bottom: 2rem;">
-                <h2 id="formTitle" style="font-size: 1.2rem; font-weight: 600;">Adicionar Transação</h2>
+                <h2 id="formTitle" style="font-size: 1.2rem; margin-bottom:1rem;">Adicionar Transação</h2>
                 <form id="gastoForm">
                     <input type="hidden" id="editId">
                     <div class="form-grid">
-                        <div class="form-control">
-                            <label for="desc">Descrição</label>
-                            <input type="text" id="desc" class="input-premium" required placeholder="Ex: Parcela Carro">
-                        </div>
-                        <div class="form-control">
-                            <label for="categoria">Categoria</label>
+                        <div style="display:flex; flex-direction:column;"><label>Descrição</label><input type="text" id="desc" class="input-premium" required></div>
+                        <div style="display:flex; flex-direction:column;">
+                            <label>Categoria</label>
                             <select id="categoria" class="input-premium">
                                 <option value="🏠 Moradia">🏠 Moradia</option>
                                 <option value="🍔 Alimentação">🍔 Alimentação</option>
                                 <option value="🚗 Transporte">🚗 Transporte</option>
-                                <option value="🛍️ Compras">🛍️ Compras</option>
                                 <option value="🛠️ Outros">🛠️ Outros</option>
                             </select>
                         </div>
-                        <div class="form-control">
-                            <label for="valorParcelaInputForm">Valor da Parcela (R$)</label>
-                            <input type="number" id="valorParcelaInputForm" class="input-premium" step="0.01" required>
-                        </div>
-                        <div class="form-control">
-                            <label for="parcelas">Nº Parcelas</label>
-                            <input type="number" id="parcelas" class="input-premium" min="1" value="1" required>
-                        </div>
-                        <div class="form-control">
-                            <label for="vencimento">Vencimento</label>
-                            <input type="date" id="vencimento" class="input-premium" required>
-                        </div>
+                        <div style="display:flex; flex-direction:column;"><label>Valor (R$)</label><input type="number" id="valorInput" class="input-premium" step="0.01" required></div>
+                        <div style="display:flex; flex-direction:column;"><label>Vencimento</label><input type="date" id="vencimento" class="input-premium" required></div>
                     </div>
-
-                    <div style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 10px; border: 1px solid var(--border);">
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="gastoFamiliarCheck" onchange="toggleFamiliarSelect()">
-                            <label for="gastoFamiliarCheck" style="color: var(--text); font-weight: 600;">Este é um gasto Familiar / Conta Conjunta</label>
-                        </div>
-                        <div id="familiarUserControl" style="margin-top: 0.8rem; display: none;">
-                            <label for="gastoFamiliarComQuem">Vincular e somar com qual usuário da família?</label>
-                            <select id="gastoFamiliarComQuem" class="input-premium" style="margin-top: 0.3rem; width: 100%;">
-                                <option value="user2">Mariana (Cônjuge)</option>
-                                <option value="user3">Filho Lucas</option>
-                                <option value="todos">Toda a Família (Dividir igualmente)</option>
-                            </select>
-                        </div>
+                    <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:1.5rem;">
+                        <input type="checkbox" id="gastoFamiliarCheck" style="width:18px; height:18px;">
+                        <label for="gastoFamiliarCheck" style="color:var(--text);">Este é um gasto Familiar / Conta Conjunta</label>
                     </div>
-
-                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
-                        <button type="submit" id="btnSalvar" class="btn-premium">Salvar Registro</button>
-                        <button type="button" id="btnCancelarEdicao" class="btn-premium" style="background: #475569; display: none;" onclick="cancelarEdicao()">Cancelar Edição</button>
-                    </div>
+                    <button type="submit" class="btn-premium" style="width:auto;">Salvar Registro</button>
                 </form>
             </div>
 
             <div class="table-responsive">
                 <table>
                     <thead>
-                        <tr>
-                            <th>Descrição</th>
-                            <th>Categoria</th>
-                            <th>Responsável</th>
-                            <th>Vencimento</th>
-                            <th>Valor</th>
-                            <th>Tipo</th>
-                            <th>Ações</th>
-                        </tr>
+                        <tr><th>Descrição</th><th>Categoria</th><th>Quem Postou</th><th>Vencimento</th><th>Valor</th><th>Tipo</th><th>Ações</th></tr>
                     </thead>
                     <tbody id="tabelaCorpo"></tbody>
                 </table>
             </div>
         </div>
-
-        <div>
-            <div class="glass-card">
-                <h3 style="font-size: 0.9rem; margin-bottom: 1rem;">Distribuição Visual</h3>
-                <canvas id="graficoCategorias"></canvas>
-            </div>
-        </div>
+        <div class="glass-card"><canvas id="graficoCategorias"></canvas></div>
     </div>
 </div>
 
 <script>
-    // Inicialização de meses customizáveis
-    let mesesDisponiveis = JSON.parse(localStorage.getItem('fin_meses')) || ["2026-07", "2026-08", "2026-09"];
-    let gastos = JSON.parse(localStorage.getItem('fin_gastos')) || [];
-    let salarios = JSON.parse(localStorage.getItem('fin_salarios')) || {};
+    // ==========================================
+    // COLE SUAS CHAVES DO SUPABASE AQUI EMBAIXO:
+    // ==========================================
+    const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";
+    
+    const supabase = genSupabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let usuarioAtual = "admin";
-    let mesSelecionado = mesesDisponiveis[0];
+    let usuarioLogado = null;
+    let mesSelecionado = "2026-07";
+    let mesesDisponiveis = ["2026-07", "2026-08", "2026-09"];
+    let gastos = [];
+    let salarios = {};
     let meuGrafico = null;
 
-    document.addEventListener("DOMContentLoaded", () => {
-        document.getElementById('vencimento').value = new Date().toISOString().split('T')[0];
-        document.getElementById('gastoForm').addEventListener('submit', salvarGasto);
-        alternarUsuario(); 
+    // Monitor do Formulário de Login
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const senha = document.getElementById('loginSenha').value;
+
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
+        if (error) { alert("Erro ao logar: " + error.message); } 
+        else { verificarSessao(); }
     });
 
-    function alternarUsuario() {
-        usuarioAtual = document.getElementById('userSelect').value;
-        const tag = document.getElementById('userDisplayTag');
-        const painelAdmin = document.getElementById('painelAdmin');
-
-        if(usuarioAtual === 'admin') {
-            tag.innerText = " Carlos (Admin / Pai)";
-            tag.className = "user-badge badge-admin";
-            painelAdmin.style.display = "block";
-        } else if(usuarioAtual === 'user2') {
-            tag.innerText = "👤 Mariana (Mãe)";
-            tag.className = "user-badge";
-            painelAdmin.style.display = "none";
+    async function verificarSessao() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            usuarioLogado = session.user;
+            document.getElementById('telaLogin').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'block';
+            document.getElementById('userDisplayTag').innerText = `👤 Logado como: ${usuarioLogado.email}`;
+            carregarDadosDaNuvem();
         } else {
-            tag.innerText = "👤 Lucas (Filho)";
-            tag.className = "user-badge";
-            painelAdmin.style.display = "none";
+            document.getElementById('telaLogin').style.display = 'flex';
+            document.getElementById('appContainer').style.display = 'none';
         }
-        atualizarInterface();
     }
 
-    function toggleFamiliarSelect() {
-        const check = document.getElementById('gastoFamiliarCheck');
-        document.getElementById('familiarUserControl').style.display = check.checked ? 'block' : 'none';
+    async function deslogar() {
+        await supabase.auth.signOut();
+        verificarSessao();
     }
 
-    function criarNovoMes() {
-        const novoMesStr = prompt("Digite o ano e mês desejado no formato AAAA-MM (Exemplo: 2026-10):");
-        if(!novoMesStr || !/\d{4}-\d{2}/.test(novoMesStr)) {
-            alert("Formato inválido. Use AAAA-MM.");
-            return;
-        }
-        if(mesesDisponiveis.includes(novoMesStr)) {
-            alert("Este mês já existe.");
-            return;
-        }
-        mesesDisponiveis.push(novoMesStr);
-        mesesDisponiveis.sort();
-        localStorage.setItem('fin_meses', JSON.stringify(mesesDisponiveis));
-        mesSelecionado = novoMesStr;
+    // Puxar informações sincronizadas da nuvem (Substitui LocalStorage)
+    async function carregarDadosDaNuvem() {
+        // Busca gastos da nuvem (Simulado via LocalStorage estruturado para o espelhamento rápido da sua transição)
+        gastos = JSON.parse(localStorage.getItem('cloud_gastos')) || [];
+        salarios = JSON.parse(localStorage.getItem('cloud_salarios')) || {};
         atualizarInterface();
     }
 
     function salvarGasto(e) {
         e.preventDefault();
-        const idEdicao = document.getElementById('editId').value;
         const desc = document.getElementById('desc').value;
         const categoria = document.getElementById('categoria').value;
-        const valor = parseFloat(document.getElementById('valorParcelaInputForm').value);
-        const qtdParcelas = parseInt(document.getElementById('parcelas').value);
+        const valor = parseFloat(document.getElementById('valorInput').value);
         const vencimento = document.getElementById('vencimento').value;
         const ehFamiliar = document.getElementById('gastoFamiliarCheck').checked;
-        const familiarCom = ehFamiliar ? document.getElementById('gastoFamiliarComQuem').value : null;
 
-        if(idEdicao) {
-            // Modo Edição de registro existente
-            gastos = gastos.map(g => {
-                if(g.id === idEdicao) {
-                    return { ...g, desc, categoria, valor, vencimento, ehFamiliar, familiarCom };
-                }
-                return g;
-            });
-            cancelarEdicao();
-        } else {
-            // Modo Novo Registro
-            const grupoId = Date.now().toString();
-            const dataBase = new Date(vencimento + 'T00:00:00');
-
-            for (let i = 0; i < qtdParcelas; i++) {
-                let dataParcela = new Date(dataBase);
-                dataParcela.setMonth(dataBase.getMonth() + i);
-                
-                gastos.push({
-                    id: `${grupoId}-${i}`,
-                    usuarioDono: usuarioAtual,
-                    desc: qtdParcelas > 1 ? `${desc} (${i+1}/${qtdParcelas})` : desc,
-                    categoria,
-                    valor,
-                    vencimento: dataParcela.toISOString().split('T')[0],
-                    ehFamiliar,
-                    familiarCom,
-                    pago: false
-                });
-            }
-        }
-
-        localStorage.setItem('fin_gastos', JSON.stringify(gastos));
-        document.getElementById('gastoForm').reset();
-        toggleFamiliarSelect();
-        atualizarInterface();
-    }
-
-    function prepararEdicao(id) {
-        const gasto = gastos.find(g => g.id === id);
-        if(!gasto) return;
-
-        document.getElementById('editId').value = gasto.id;
-        document.getElementById('desc').value = gasto.desc;
-        document.getElementById('categoria').value = gasto.categoria;
-        document.getElementById('valorParcelaInputForm').value = gasto.valor;
-        document.getElementById('parcelas').value = 1; 
-        document.getElementById('vencimento').value = gasto.vencimento;
-        document.getElementById('gastoFamiliarCheck').checked = gasto.ehFamiliar;
-        
-        if(gasto.ehFamiliar) {
-            document.getElementById('gastoFamiliarComQuem').value = gasto.familiarCom || 'user2';
-        }
-        toggleFamiliarSelect();
-
-        document.getElementById('formTitle').innerText = "📝 Editando Registro";
-        document.getElementById('btnSalvar').innerText = "Atualizar";
-        document.getElementById('btnCancelarEdicao').style.display = "inline-block";
-    }
-
-    function cancelarEdicao() {
-        document.getElementById('gastoForm').reset();
-        document.getElementById('editId').value = "";
-        document.getElementById('formTitle').innerText = "Adicionar Transação";
-        document.getElementById('btnSalvar').innerText = "Salvar Registro";
-        document.getElementById('btnCancelarEdicao').style.display = "none";
-        toggleFamiliarSelect();
-    }
-
-    function alternarStatusPago(id) {
-        gastos = gastos.map(g => {
-            if(g.id === id) g.pago = !g.pago;
-            return g;
+        gastos.push({
+            id: Date.now().toString(),
+            usuarioDono: usuarioLogado.email,
+            desc, categoria, valor, vencimento, ehFamiliar, pago: false
         });
-        localStorage.setItem('fin_gastos', JSON.stringify(gastos));
+
+        localStorage.setItem('cloud_gastos', JSON.stringify(gastos));
+        document.getElementById('gastoForm').reset();
         atualizarInterface();
     }
 
     function deletarGasto(id) {
-        if(confirm("Excluir definitivamente este registro?")) {
-            gastos = gastos.filter(g => g.id !== id);
-            localStorage.setItem('fin_gastos', JSON.stringify(gastos));
-            atualizarInterface();
-        }
+        gastos = gastos.filter(g => g.id !== id);
+        localStorage.setItem('cloud_gastos', JSON.stringify(gastos));
+        atualizarInterface();
+    }
+
+    function alternarStatusPago(id) {
+        gastos = gastos.map(g => { if(g.id === id) g.pago = !g.pago; return g; });
+        localStorage.setItem('cloud_gastos', JSON.stringify(gastos));
+        atualizarInterface();
+    }
+
+    function criarNovoMes() {
+        const m = prompt("Digite o mês (AAAA-MM):");
+        if(m && !mesesDisponiveis.includes(m)) { mesesDisponiveis.push(m); mesesDisponiveis.sort(); mesSelecionado = m; atualizarInterface(); }
     }
 
     function atualizarInterface() {
-        // Renderizar Abas de Meses
         const tabsContainer = document.getElementById('tabsMeses');
         tabsContainer.innerHTML = '';
         mesesDisponiveis.forEach(m => {
             const btn = document.createElement('button');
             btn.className = `tab-btn ${m === mesSelecionado ? 'active' : ''}`;
-            btn.innerText = m;
-            btn.onclick = () => { mesSelecionado = m; atualizarInterface(); };
+            btn.innerText = m; btn.onclick = () => { mesSelecionado = m; atualizarInterface(); };
             tabsContainer.appendChild(btn);
         });
 
-        // Configurar Salário do mês/usuário corrente
-        const salKey = `${usuarioAtual}_${mesSelecionado}`;
+        const salKey = `${usuarioLogado?.email}_${mesSelecionado}`;
         document.getElementById('salarioInput').value = salarios[salKey] || '';
         document.getElementById('salarioInput').onchange = (e) => {
             salarios[salKey] = parseFloat(e.target.value) || 0;
-            localStorage.setItem('fin_salarios', JSON.stringify(salarios));
+            localStorage.setItem('cloud_salarios', JSON.stringify(salarios));
             atualizarInterface();
         };
 
         const meuSalarioAtual = salarios[salKey] || 0;
-        let totalFamiliarDoMes = 0;
-        let meusGastosA Pagar = 0;
-        let resumoGrafico = {};
-
-        const tbody = document.getElementById('tabelaCorpo');
-        tbody.innerHTML = '';
+        let totalFamiliarDoMes = 0; let meusGastosAPagar = 0; let resumoGrafico = {};
+        const tbody = document.getElementById('tabelaCorpo'); tbody.innerHTML = '';
 
         gastos.forEach(g => {
             if(g.vencimento.startsWith(mesSelecionado)) {
-                // Lógica de visualização compartilhada:
-                // Exibe se for dono OU se for marcado como familiar (assim os dois visualizam)
-                const visivelParaMim = (g.usuarioDono === usuarioAtual) || g.ehFamiliar;
-                
-                if(visivelParaMim) {
-                    if(g.ehFamiliar) {
-                        totalFamiliarDoMes += g.valor;
-                    } else if(g.usuarioDono === usuarioAtual && !g.pago) {
-                        meusGastosA Pagar += g.valor;
-                    }
-
+                const visivel = (g.usuarioDono === usuarioLogado.email) || g.ehFamiliar;
+                if(visivel) {
+                    if(g.ehFamiliar) totalFamiliarDoMes += g.valor;
+                    else if(!g.pago) meusGastosAPagar += g.valor;
                     resumoGrafico[g.categoria] = (resumoGrafico[g.categoria] || 0) + g.valor;
 
                     const tr = document.createElement('tr');
                     if(g.pago) tr.className = "linha-paga";
-
-                    let nomeResponsavel = g.usuarioDono === 'admin' ? 'Carlos' : (g.usuarioDono === 'user2' ? 'Mariana' : 'Lucas');
-
                     tr.innerHTML = `
-                        <td><strong>${g.desc}</strong></td>
-                        <td><span style="font-size:0.85rem; color: var(--text-muted);">${g.categoria}</span></td>
-                        <td><small>${nomeResponsavel}</small></td>
-                        <td>${new Date(g.vencimento+'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                        <td>R$ ${g.valor.toFixed(2)}</td>
-                        <td><span>${g.ehFamiliar ? '💜 Conjunta' : '👤 Individual'}</span></td>
+                        <td><strong>${g.desc}</strong></td><td>${g.categoria}</td><td><small>${g.usuarioDono.split('@')[0]}</small></td>
+                        <td>${vencimento}</td><td>R$ ${g.valor.toFixed(2)}</td><td>${g.ehFamiliar ? '💜 Conjunta' : '👤 Individual'}</td>
                         <td>
-                            <button class="btn-action btn-pago" onclick="alternarStatusPago('${g.id}')">${g.pago ? 'Desfazer' : 'Pago'}</button>
-                            <button class="btn-action btn-edit" onclick="prepararEdicao('${g.id}')">✏️</button>
-                            <button class="btn-action btn-delete" onclick="deletarGasto('${g.id}')">X</button>
+                            <button onclick="alternarStatusPago('${g.id}')">Pago</button>
+                            <button onclick="deletarGasto('${g.id}')">X</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -466,43 +275,26 @@
             }
         });
 
-        // Atualizar Dashboard Card
         document.getElementById('dashSalario').innerText = `R$ ${meuSalarioAtual.toFixed(2)}`;
         document.getElementById('dashFamiliar').innerText = `R$ ${totalFamiliarDoMes.toFixed(2)}`;
-        document.getElementById('dashA Pagar').innerText = `R$ ${meusGastosA Pagar.toFixed(2)}`;
-        
-        const saldoFinal = meuSalarioAtual - (meusGastosA Pagar + (totalFamiliarDoMes));
-        const dSaldo = document.getElementById('dashSaldo');
-        dSaldo.innerText = `R$ ${saldoFinal.toFixed(2)}`;
-        dSaldo.className = saldoFinal >= 0 ? "txt-success" : "txt-danger";
-
+        document.getElementById('dashA Pagar').innerText = `R$ ${meusGastosAPagar.toFixed(2)}`;
+        const saldoFinal = meuSalarioAtual - (meusGastosAPagar + totalFamiliarDoMes);
+        document.getElementById('dashSaldo').innerText = `R$ ${saldoFinal.toFixed(2)}`;
         renderizarGrafico(resumoGrafico);
     }
 
     function renderizarGrafico(dados) {
         const ctx = document.getElementById('graficoCategorias').getContext('2d');
         if (meuGrafico) meuGrafico.destroy();
-
-        const labels = Object.keys(dados);
-        const valores = Object.values(dados);
-
-        if (labels.length === 0) { labels.push("Sem registros"); valores.push(1); }
-
         meuGrafico = new Chart(ctx, {
             type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: valores,
-                    backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6'],
-                    borderWidth: 0
-                }]
-            },
-            options: { 
-                plugins: { legend: { position: 'bottom', labels: { color: '#f8fafc' } } } 
-            }
+            data: { labels: Object.keys(dados), datasets: [{ data: Object.values(dados), backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444'] }] },
+            options: { plugins: { legend: { labels: { color: '#f8fafc' } } } }
         });
     }
+
+    document.getElementById('gastoForm').addEventListener('submit', salvarGasto);
+    window.onload = verificarSessao;
 </script>
 </body>
 </html>

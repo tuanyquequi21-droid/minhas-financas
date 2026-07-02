@@ -1,4 +1,4 @@
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 
 // =========================================================================
 // ⚠️ EDITE AS DUAS LINHAS ABAIXO COLOCANDO SUAS CHAVES DO SUPABASE
@@ -6,6 +6,7 @@
 const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co"; 
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           
 // ======// =========================================================================
+
 
 const bancoSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true }
@@ -23,7 +24,7 @@ async function executarLogin() {
     const emailField = document.getElementById('loginEmail');
     const senhaField = document.getElementById('loginSenha');
 
-    if (!emailField || !senhaField || !emailField.value) {
+    if (!emailField || !senhaField || !emailField.value || !senhaField.value) {
         alert("Por favor, digite seu e-mail e sua senha.");
         return;
     }
@@ -36,20 +37,24 @@ async function executarLogin() {
         
         if (error) {
             alert("❌ Erro de Login: " + error.message);
-        } else {
-            usuarioLogado = data.user;
-            localStorage.setItem('sessao_usuario', JSON.stringify(usuarioLogado));
-            entrarNoPainel();
+            return;
         }
+        
+        usuarioLogado = data.user;
+        localStorage.setItem('sessao_usuario', JSON.stringify(usuarioLogado));
+        entrarNoPainel();
+        
     } catch (err) {
-        alert("Erro ao conectar com o banco.");
+        alert("Erro na tentativa de autenticação. Verifique sua conexão.");
     }
 }
 
 function entrarNoPainel() {
     document.getElementById('telaLogin').style.display = 'none';
     document.getElementById('appContainer').style.display = 'block';
-    document.getElementById('userDisplayTag').innerText = `👤 Logado como: ${usuarioLogado.email}`;
+    if(usuarioLogado) {
+        document.getElementById('userDisplayTag').innerText = `👤 Logado como: ${usuarioLogado.email}`;
+    }
     carregarDadosNuvem();
 }
 
@@ -60,21 +65,33 @@ function deslogar() {
     window.location.reload();
 }
 
-// 🌐 BUSCA AUTOMÁTICA DA NUVEM
+// 🌐 BUSCA ISOLADA PARA EVITAR QUE ERROS EM UMA TABELA TRAVEM O APP
 async function carregarDadosNuvem() {
-    try {
-        const { data: dadosGastos } = await bancoSupabase.from('gastos').select('*');
-        gastos = dadosGastos || [];
+    if (!usuarioLogado) return;
 
-        const { data: dadosSalarios } = await bancoSupabase.from('salarios').select('*');
+    // 1. Tenta carregar Gastos
+    try {
+        const { data: dadosGastos, error: errGastos } = await bancoSupabase.from('gastos').select('*');
+        if (errGastos) throw errGastos;
+        gastos = dadosGastos || [];
+    } catch (error) {
+        console.error("Aviso: Erro ao carregar gastos do banco. Usando dados locais vazios.", error);
+        gastos = [];
+    }
+
+    // 2. Tenta carregar Salários de forma independente
+    try {
+        const { data: dadosSalarios, error: errSalarios } = await bancoSupabase.from('salarios').select('*');
         salarios = {};
         if (dadosSalarios) {
             dadosSalarios.forEach(s => { salarios[s.chave_salario] = s.valor; });
         }
-        atualizarInterface();
     } catch (error) {
-        console.error("Erro ao sincronizar com a nuvem:", error);
+        console.error("Aviso: Erro ao carregar salários. Ignorando para não travar.", error);
     }
+
+    // Atualiza a tela com o que conseguiu puxar
+    atualizarInterface();
 }
 
 // CONTROLES VISUAIS DOS CAMPOS
@@ -174,24 +191,29 @@ async function salvarGasto(e) {
     }
 
     try {
-        await bancoSupabase.from('gastos').insert(novosGastos);
+        const { error } = await bancoSupabase.from('gastos').insert(novosGastos);
+        if(error) throw error;
+        
         document.getElementById('gastoForm').reset();
         document.getElementById('vencimento').value = new Date().toISOString().split('T')[0];
         document.getElementById('tipoContaSelect').value = 'normal';
         alternarCamposTipo();
         await carregarDadosNuvem();
     } catch (err) {
-        alert("Erro ao salvar no banco.");
+        alert("Erro ao salvar o gasto no banco: " + err.message);
     }
 }
 
-// 🌐 DELETA DIRETO NO BANCO
 async function deletarGasto(id, idGrupo, tipo) {
+    const conf = (tipo === 'parcelado' || tipo === 'recorrente') 
+        ? confirm("Deseja apagar TODAS as recorrências/parcelas desta série?") 
+        : confirm("Deseja apagar este gasto?");
+        
+    if (!conf) return;
+
     try {
-        if (tipo === 'parcelado' || tipo === 'recorrente') {
-            const conf = confirm("Deseja apagar TODAS as recorrências/parcelas desta série?");
-            if (conf) await bancoSupabase.from('gastos').delete().eq('id_grupo', idGrupo);
-            else await bancoSupabase.from('gastos').delete().eq('id', id);
+        if ((tipo === 'parcelado' || tipo === 'recorrente') && conf) {
+            await bancoSupabase.from('gastos').delete().eq('id_grupo', idGrupo);
         } else {
             await bancoSupabase.from('gastos').delete().eq('id', id);
         }
@@ -199,7 +221,6 @@ async function deletarGasto(id, idGrupo, tipo) {
     } catch (e) {}
 }
 
-// 🌐 ATUALIZA STATUS DE PAGO NO BANCO
 async function alternarStatusPago(id, statusAtual) {
     try {
         await bancoSupabase.from('gastos').update({ pago: !statusAtual }).eq('id', id);
@@ -217,7 +238,6 @@ function criarNovoMes() {
     }
 }
 
-// ATUALIZAÇÃO DO DASHBOARD E GRÁFICO
 function atualizarInterface() {
     const tabsContainer = document.getElementById('tabsMeses');
     if(!tabsContainer) return;
@@ -231,7 +251,8 @@ function atualizarInterface() {
         tabsContainer.appendChild(btn);
     });
 
-    const salKey = `${usuarioLogado?.email}_${mesSelecionado}`;
+    const emailU = usuarioLogado ? usuarioLogado.email : 'user';
+    const salKey = `${emailU}_${mesSelecionado}`;
     const salInput = document.getElementById('salarioInput');
     
     if(salInput) {
@@ -252,7 +273,7 @@ function atualizarInterface() {
 
     gastos.forEach(g => {
         if(g.vencimento && g.vencimento.startsWith(mesSelecionado)) {
-            const visivel = (g.usuario_dono === usuarioLogado.email) || g.eh_familiar;
+            const visivel = (g.usuario_dono === emailU) || g.eh_familiar;
             if(visivel) {
                 if(g.eh_familiar) totalFamiliarDoMes += g.valor;
                 else if(!g.pago) meusGastosAPagar += g.valor;
@@ -310,7 +331,7 @@ function renderizarGrafico(dados) {
     });
 }
 
-// INICIALIZADOR DE SESSÃO AUTOMÁTICO DO BANCO
+// INICIALIZADOR DE SESSÃO SEGURO
 window.addEventListener('DOMContentLoaded', async () => {
     const form = document.getElementById('gastoForm');
     if (form) form.addEventListener('submit', salvarGasto);
@@ -324,6 +345,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     const vencField = document.getElementById('vencimento');
     if(vencField) vencField.value = new Date().toISOString().split('T')[0];
 
+    // Checa se o Supabase já tem sessão guardada no navegador
     try {
         const { data: { session } } = await bancoSupabase.auth.getSession();
         if (session && session.user) {

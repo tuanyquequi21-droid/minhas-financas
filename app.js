@@ -5,7 +5,10 @@ const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           
 // ======// =========================================================================
 
-// Configuração limpa do cliente (Removida a gravação forçada em nuvem para evitar erros de tabelas faltantes)
+// =========================================================================
+// SISTEMA DE GESTÃO FINANCEIRA PREMIUM (VERSÃO LOCAL INTEGRADA)
+// =========================================================================
+
 let usuarioLogado = null;
 let mesSelecionado = "2026-07";
 let mesesDisponiveis = ["2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
@@ -13,13 +16,18 @@ let gastos = [];
 let salarios = {};
 let meuGrafico = null;
 
+// LOGIN LOCAL ROBUSTO (Evita bloqueios de servidores externos)
 function executarLogin() {
     const emailField = document.getElementById('loginEmail');
     if (!emailField || !emailField.value) {
-        alert("Por favor, digite seu e-mail.");
+        alert("Por favor, digite seu e-mail para acessar.");
         return;
     }
+    
+    // Define o usuário logado com o e-mail digitado
     usuarioLogado = { email: emailField.value.trim() };
+    
+    // Salva na memória do navegador para persistência (Não deslogar no F5)
     localStorage.setItem('sessao_usuario', JSON.stringify(usuarioLogado));
     entrarNoPainel();
 }
@@ -43,7 +51,7 @@ function carregarDados() {
     atualizarInterface();
 }
 
-// CONTROLES VISUAIS DOS NOVOS CAMPOS DO FORMULÁRIO
+// CONTROLES VISUAIS DOS CAMPOS DO FORMULÁRIO
 function alternarCamposTipo() {
     const tipo = document.getElementById('tipoContaSelect').value;
     const camposParcelas = document.getElementById('camposParcelas');
@@ -68,7 +76,7 @@ function calcularTotalParcelas() {
     document.getElementById('textoValorTotal').innerText = `R$ ${total.toFixed(2)}`;
 }
 
-// SALVAR GASTO COM REQUISITOS VISUAIS ATUALIZADOS
+// SALVAR GASTO COM REQUISITOS VISUAIS
 function salvarGasto(e) {
     if (e) e.preventDefault();
     
@@ -98,7 +106,6 @@ function salvarGasto(e) {
                 id: `${idGrupo}_${i}`,
                 idGrupo: idGrupo,
                 usuarioDono: usuarioLogado.email,
-                // Registra o valor total no texto para controle completo visual
                 desc: `${desc} (${i + 1}/${qtdParcelas}) [Total: R$${valorTotalCalculado.toFixed(2)}]`,
                 categoria,
                 valor: valorParcela,
@@ -177,7 +184,7 @@ function criarNovoMes() {
     }
 }
 
-// RECURSO DE SINCRONIZAÇÃO COMPATÍVEL ENTRE CELULAR E PC via arquivo de Backup
+// EXPORTAR BACKUP JSON
 function exportarDados() {
     const backup = { gastos, salarios, mesesDisponiveis };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup));
@@ -189,6 +196,7 @@ function exportarDados() {
     downloadAnchor.remove();
 }
 
+// IMPORTAR BACKUP JSON (SINCRONIZAÇÃO ENTRE PC E CELULAR)
 function importarDados(input) {
     const file = input.files[0];
     if (!file) return;
@@ -202,10 +210,10 @@ function importarDados(input) {
             
             localStorage.setItem('cloud_gastos', JSON.stringify(gastos));
             localStorage.setItem('cloud_salarios', JSON.stringify(salarios));
-            alert("🎯 Dados sincronizados e importados com sucesso!");
+            alert("🎯 Sincronização realizada! Dados atualizados com sucesso.");
             atualizarInterface();
         } catch (err) {
-            alert("Arquivo inválido.");
+            alert("Arquivo de sincronização inválido.");
         }
     };
     reader.readAsText(file);
@@ -294,6 +302,7 @@ function renderizarGrafico(dados) {
     });
 }
 
+// CHECA SESSÃO ANTERIOR IMEDIATAMENTE (Segurança anti-deslogar)
 window.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('gastoForm');
     if (form) {

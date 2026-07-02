@@ -3,143 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão de Gastos Premium</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Gestão Financeira Premium</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a; --card: #1e293b; --text: #f8fafc;
+            --primary: #6366f1; --success: #10b981; --danger: #ef4444;
+        }
+        body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .login-card, .container { max-width: 1000px; margin: 50px auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); }
+        .input-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        .input-group label { margin-bottom: 5px; font-weight: bold; }
+        input, select, button { padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white; font-size: 1rem; }
+        button { background: var(--primary); cursor: pointer; border: none; font-weight: bold; }
+        button:hover { opacity: 0.9; }
+        .grid-dash { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card-dash { background: #334155; padding: 20px; border-radius: 8px; text-align: center; }
+        .card-dash h3 { margin: 0 0 10px 0; font-size: 0.9rem; color: #94a3b8; }
+        .card-dash p { margin: 0; font-size: 1.8rem; font-weight: bold; }
+        .tab-btn { background: #334155; margin-right: 5px; padding: 8px 12px; }
+        .tab-btn.active { background: var(--primary); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #475569; }
+        th { background: #334155; }
+        .linha-paga { text-decoration: line-through; opacity: 0.5; }
+        .flex-container { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px; }
+        @media(max-width: 768px) { .flex-container { grid-template-columns: 1fr; } }
+    </style>
 </head>
 <body>
 
-<div id="telaLogin" class="login-screen">
-    <div class="login-card glass-card">
-        <h2>Acessar Finanças</h2>
-        <label>E-mail</label>
-        <input type="email" id="loginEmail" class="input-premium" placeholder="seuemail@email.com">
-        <label>Senha</label>
-        <input type="password" id="loginSenha" class="input-premium" placeholder="••••••••">
-        <button class="btn-premium" onclick="executarLogin()">Entrar no Sistema</button>
-    </div>
-</div>
-
-<div id="appContainer" class="container">
-    <div class="auth-bar">
-        <span id="userDisplayTag" class="user-badge">👤 Carregando...</span>
-        <div style="display: flex; gap: 8px;">
-            <button class="btn-sync" onclick="exportarDados()">📤 Exportar</button>
-            <button class="btn-sync" onclick="document.getElementById('importFile').click()">📥 Importar</button>
-            <input type="file" id="importFile" style="display:none" onchange="importarDados(this)">
-            <button class="btn-logout" onclick="deslogar()">Sair 🚪</button>
+    <div id="telaLogin" class="login-card" style="max-width: 400px;">
+        <h2 style="margin-top:0; text-align: center;">Acessar Sistema</h2>
+        <div class="input-group">
+            <label>E-mail:</label>
+            <input type="email" id="loginEmail" placeholder="seu@email.com" required>
         </div>
+        <div class="input-group">
+            <label>Senha:</label>
+            <input type="password" id="loginSenha" placeholder="Sua senha do banco" required>
+        </div>
+        <button type="button" id="btnLogar" style="width: 100%;">Entrar no Sistema</button>
     </div>
 
-    <header>
-        <div>
-            <h1>Gestão Financeira</h1>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Controle de contas individuais e conjuntas</p>
+    <div id="appContainer" class="container" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <span id="userDisplayTag" style="font-weight: bold; color: #94a3b8;">👤 Carregando usuário...</span>
+            <button id="btnDeslogar" style="background: var(--danger); padding: 5px 10px; font-size: 0.9rem;">Sair</button>
         </div>
-        <button class="btn-premium" style="width: auto; padding: 0.5rem 1rem;" onclick="criarNovoMes()">+ Criar Mês</button>
-    </header>
 
-    <div class="tabs-wrapper">
-        <div id="tabsMeses" class="tabs-container"></div>
-    </div>
+        <div style="margin-bottom: 20px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
+            <div id="tabsMeses" style="display: inline-block;"></div>
+            <button id="btnNovoMes" style="background: #475569; padding: 8px 12px;">+ Novo Mês</button>
+        </div>
 
-    <div class="dashboard">
-        <div class="glass-card">
-            <h3>Meu Salário</h3>
-            <input type="number" id="salarioInput" class="input-premium" style="margin: 0; padding: 0.2rem 0.5rem; font-size: 1.15rem; font-weight: 700;" placeholder="R$ 0,00">
+        <div class="grid-dash">
+            <div class="card-dash">
+                <h3>Meu Salário (Este Mês)</h3>
+                <input type="number" id="salarioInput" placeholder="R$ 0,00" style="width: 80%; text-align: center; font-size: 1.3rem; font-weight: bold; background: transparent; border: none; border-bottom: 2px solid var(--primary); border-radius: 0;">
+            </div>
+            <div class="card-dash">
+                <h3>Gastos Conjuntos / Familiares</h3>
+                <p id="dashFamiliar" style="color: #c084fc;">R$ 0,00</p>
+            </div>
+            <div class="card-dash">
+                <h3>Meus Gastos (A Pagar)</h3>
+                <p id="dashAPagar" style="color: var(--danger);">R$ 0,00</p>
+            </div>
+            <div class="card-dash">
+                <h3>Saldo Restante</h3>
+                <p id="dashSaldo" style="color: var(--success);">R$ 0,00</p>
+            </div>
         </div>
-        <div class="glass-card">
-            <h3>Gastos Conjuntos</h3>
-            <p id="dashFamiliar" style="color: var(--warning);">R$ 0,00</p>
-        </div>
-        <div class="glass-card">
-            <h3>Meus Gastos a Pagar</h3>
-            <p id="dashAPagar" style="color: var(--danger);">R$ 0,00</p>
-        </div>
-        <div class="glass-card">
-            <h3>Saldo Restante</h3>
-            <p id="dashSaldo" style="color: var(--success);">R$ 0,00</p>
-        </div>
-    </div>
 
-    <div class="main-layout">
-        <div>
-            <div class="glass-card">
-                <h3 style="margin-bottom: 1rem; color: var(--text);">Novo Gasto</h3>
+        <div class="flex-container">
+            <div>
+                <h3>Lançar Nova Despesa</h3>
                 <form id="gastoForm">
-                    <div class="form-grid">
-                        <input type="text" id="desc" class="input-premium" placeholder="Descrição (Ex: Mercado, Luz)" required>
-                        <select id="categoria" class="input-premium">
+                    <div class="input-group">
+                        <label>Descrição do Gasto:</label>
+                        <input type="text" id="desc" placeholder="Ex: Supermercado, Aluguel" required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Categoria:</label>
+                        <select id="categoria">
                             <option value="Moradia">Moradia</option>
                             <option value="Alimentação">Alimentação</option>
                             <option value="Transporte">Transporte</option>
                             <option value="Lazer">Lazer</option>
+                            <option value="Saúde">Saúde</option>
                             <option value="Outros">Outros</option>
                         </select>
                     </div>
 
-                    <div class="form-grid">
-                        <select id="tipoContaSelect" class="input-premium" onchange="alternarCamposTipo()">
-                            <option value="normal">Conta Normal (Apenas este mês)</option>
-                            <option value="recorrente">Conta Fixa / Recorrente (Todo mês)</option>
-                            <option value="parcelado">Conta Parcelada</option>
+                    <div class="input-group">
+                        <label>Vencimento:</label>
+                        <input type="date" id="vencimento" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Tipo de Conta:</label>
+                        <select id="tipoContaSelect">
+                            <option value="normal">Gasto À Vista / Normal</option>
+                            <option value="parcelado">Gasto Parcelado</option>
+                            <option value="recorrente">Gasto Fixo / Recorrente (12 meses)</option>
                         </select>
-                        <input type="date" id="vencimento" class="input-premium" required>
                     </div>
 
-                    <div id="camposParcelas" class="form-grid" style="display: none; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px dashed var(--border); margin-bottom: 1rem;">
-                        <div>
-                            <label style="font-size: 0.8rem; color: var(--text-muted);">Qtd de Parcelas</label>
-                            <input type="number" id="qtdParcelasInput" class="input-premium" style="margin-bottom:0;" value="2" min="2" oninput="calcularTotalParcelas()">
+                    <div id="camposParcelas" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                        <div class="input-group" style="margin:0;">
+                            <label>Qtd Parcelas:</label>
+                            <input type="number" id="qtdParcelasInput" value="2" min="2">
                         </div>
-                        <div>
-                            <label style="font-size: 0.8rem; color: var(--text-muted);">Valor de Cada Parcela</label>
-                            <input type="number" step="0.01" id="valorParcelaInput" class="input-premium" style="margin-bottom:0;" placeholder="R$ 0,00" oninput="calcularTotalParcelas()">
+                        <div class="input-group" style="margin:0;">
+                            <label>Valor da Parcela:</label>
+                            <input type="number" id="valorParcelaInput" placeholder="0.00" step="0.01">
                         </div>
-                        <div style="grid-column: 1 / -1; margin-top: 5px;">
-                            <p style="font-size: 0.85rem; color: var(--warning);">Valor Total Calculado: <strong id="textoValorTotal">R$ 0,00</strong></p>
+                        <div style="grid-column: span 2; font-size: 0.9rem; color: #94a3b8; margin-top: 5px;">
+                            Total do Parcelamento: <span id="textoValorTotal" style="color: white; font-weight: bold;">R$ 0,00</span>
                         </div>
                     </div>
 
-                    <div id="campoValorNormal">
-                        <input type="number" step="0.01" id="valorInput" class="input-premium" placeholder="Valor (R$)" required>
+                    <div class="input-group" id="campoValorNormal">
+                        <label>Valor Total:</label>
+                        <input type="number" id="valorInput" placeholder="0.00" step="0.01" required>
                     </div>
 
-                    <div style="margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" id="gastoFamiliarCheck" style="width:18px; height:18px; cursor:pointer;">
-                        <label for="gastoFamiliarCheck" style="cursor:pointer; font-size:0.9rem;">💜 Marcar como Gasto Conjunto / Familiar</label>
+                    <div style="margin: 20px 0; display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="gastoFamiliarCheck" style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="gastoFamiliarCheck" style="cursor: pointer; font-weight: bold; color: #c084fc;">💜 Este é um gasto familiar / conjunto</label>
                     </div>
 
-                    <button type="submit" class="btn-premium">Salvar Gasto</button>
+                    <button type="submit" style="width: 100%; background: var(--success);">Adicionar Gasto</button>
                 </form>
             </div>
 
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Descrição</th>
-                            <th>Categoria</th>
-                            <th>Quem Postou</th>
-                            <th>Vencimento</th>
-                            <th>Valor</th>
-                            <th>Tipo</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaCorpo"></tbody>
-                </table>
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <h3>Distribuição por Categorias</h3>
+                <div style="width: 100%; max-width: 300px;">
+                    <canvas id="graficoCategorias"></canvas>
+                </div>
             </div>
         </div>
 
-        <div class="glass-card" style="max-height: 380px;">
-            <h3 style="margin-bottom: 1rem;">Distribuição por Categoria</h3>
-            <canvas id="graficoCategorias"></canvas>
+        <div style="overflow-x: auto; margin-top: 40px;">
+            <h3>Extrato de Lançamentos</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Descrição</th>
+                        <th>Categoria</th>
+                        <th>Quem Lançou</th>
+                        <th>Vencimento</th>
+                        <th>Valor</th>
+                        <th>Tipo</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaCorpo"></tbody>
+            </table>
         </div>
     </div>
-</div>
 
-<script src="./app.js?v=10"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Mapeia o botão de login
+            const btnLogar = document.getElementById('btnLogar');
+            if (btnLogar) {
+                btnLogar.addEventListener('click', () => {
+                    if (typeof executarLogin === 'function') {
+                        executarLogin();
+                    } else {
+                        alert('Erro: A função executarLogin não foi encontrada no app.js');
+                    }
+                });
+            }
+
+            // Mapeia o botão de deslogar
+            const btnDeslogar = document.getElementById('btnDeslogar');
+            if (btnDeslogar) {
+                btnDeslogar.addEventListener('click', () => {
+                    if (typeof deslogar === 'function') deslogar();
+                });
+            }
+
+            // Mapeia o botão de novo mês
+            const btnNovoMes = document.getElementById('btnNovoMes');
+            if (btnNovoMes) {
+                btnNovoMes.addEventListener('click', () => {
+                    if (typeof criarNovoMes === 'function') criarNovoMes();
+                });
+            }
+        });
+    </script>
+
+    <script src="./app.js?v=9"></script>
 </body>
 </html>

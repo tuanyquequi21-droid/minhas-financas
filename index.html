@@ -3,105 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finanças Pro | Dashboard</title>
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
+    <title>Gestão de Gastos Premium</title>
     <link rel="stylesheet" href="style.css">
-    
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-<div class="login-screen" id="telaLogin">
-    <div class="login-card">
-        <h2>Acessar Sistema</h2>
-        <div id="loginForm">
-            <label>E-mail</label>
-            <input type="email" id="loginEmail" class="input-premium" placeholder="seu@email.com">
-            
-            <label>Senha</label>
-            <input type="password" id="loginSenha" class="input-premium" placeholder="••••••••">
-            
-            <button type="button" class="btn-premium" style="margin-top: 1rem;" onclick="executarLogin()">Entrar</button>
-        </div>
+<div id="telaLogin" class="login-screen">
+    <div class="login-card glass-card">
+        <h2>Acessar Finanças</h2>
+        <label>E-mail</label>
+        <input type="email" id="loginEmail" class="input-premium" placeholder="seuemail@email.com">
+        <label>Senha</label>
+        <input type="password" id="loginSenha" class="input-premium" placeholder="••••••••">
+        <button class="btn-premium" onclick="executarLogin()">Entrar no Sistema</button>
     </div>
 </div>
 
-<div class="container" id="appContainer">
+<div id="appContainer" class="container">
     <div class="auth-bar">
-        <div id="userDisplayTag" class="user-badge">👤 Carregando usuário...</div>
-        <button class="btn-logout" onclick="deslogar()">Sair 🚪</button>
+        <span id="userDisplayTag" class="user-badge">👤 Carregando...</span>
+        <div style="display: flex; gap: 8px;">
+            <button class="btn-sync" onclick="exportarDados()">📤 Exportar</button>
+            <button class="btn-sync" onclick="document.getElementById('importFile').click()">📥 Importar</button>
+            <input type="file" id="importFile" style="display:none" onchange="importarDados(this)">
+            <button class="btn-logout" onclick="deslogar()">Sair 🚪</button>
+        </div>
     </div>
 
     <header>
         <div>
-            <h1>Finanças em Nuvem</h1>
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Dados sincronizados em tempo real</p>
+            <h1>Gestão Financeira</h1>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Controle de contas individuais e conjuntas</p>
         </div>
-        <div class="header-actions">
-            <div style="display:flex; flex-direction:column; gap:0.3rem;">
-                <label style="font-size:0.85rem;">Salário Líquido:</label>
-                <input type="number" id="salarioInput" class="input-premium" step="0.01" style="width:160px; margin:0;">
-            </div>
-        </div>
+        <button class="btn-premium" style="width: auto; padding: 0.5rem 1rem;" onclick="criarNovoMes()">+ Criar Mês</button>
     </header>
 
     <div class="tabs-wrapper">
-        <div class="tabs-container" id="tabsMeses"></div>
-        <button class="tab-btn" onclick="criarNovoMes()" style="border: 1px dashed var(--primary); color: var(--primary);">➕ Mês</button>
+        <div id="tabsMeses" class="tabs-container"></div>
+    </div>
+
+    <div class="dashboard">
+        <div class="glass-card">
+            <h3>Meu Salário</h3>
+            <input type="number" id="salarioInput" class="input-premium" style="margin: 0; padding: 0.2rem 0.5rem; font-size: 1.15rem; font-weight: 700;" placeholder="R$ 0,00">
+        </div>
+        <div class="glass-card">
+            <h3>Gastos Conjuntos</h3>
+            <p id="dashFamiliar" style="color: var(--warning);">R$ 0,00</p>
+        </div>
+        <div class="glass-card">
+            <h3>Meus Gastos a Pagar</h3>
+            <p id="dashAPagar" style="color: var(--danger);">R$ 0,00</p>
+        </div>
+        <div class="glass-card">
+            <h3>Saldo Restante</h3>
+            <p id="dashSaldo" style="color: var(--success);">R$ 0,00</p>
+        </div>
     </div>
 
     <div class="main-layout">
         <div>
-            <div class="dashboard">
-                <div class="glass-card"><h3>Meu Salário</h3><p id="dashSalario" style="color: var(--primary)">R$ 0,00</p></div>
-                <div class="glass-card"><h3>Gasto Familiar</h3><p id="dashFamiliar" style="color: #c084fc">R$ 0,00</p></div>
-                <div class="glass-card"><h3>Meus Gastos</h3><p id="dashAPagar" style="color: var(--warning)">R$ 0,00</p></div>
-                <div class="glass-card"><h3>Saldo Livre</h3><p id="dashSaldo">R$ 0,00</p></div>
-            </div>
-
-            <div class="glass-card" style="margin-bottom: 2rem;">
-                <h2 style="font-size: 1.2rem; margin-bottom:1rem;">Adicionar Transação</h2>
-                <form id="gastoForm" onsubmit="salvarGasto(event)">
+            <div class="glass-card">
+                <h3 style="margin-bottom: 1rem; color: var(--text);">Novo Gasto</h3>
+                <form id="gastoForm" onsubmit="salvarGasto(e)">
                     <div class="form-grid">
-                        <div style="display:flex; flex-direction:column;"><label>Descrição</label><input type="text" id="desc" class="input-premium" required></div>
-                        <div style="display:flex; flex-direction:column;">
-                            <label>Categoria</label>
-                            <select id="categoria" class="input-premium">
-                                <option value="🏠 Moradia">🏠 Moradia</option>
-                                <option value="🍔 Alimentação">🍔 Alimentação</option>
-                                <option value="🚗 Transporte">🚗 Transporte</option>
-                                <option value="🛠️ Outros">🛠️ Outros</option>
-                            </select>
+                        <input type="text" id="desc" class="input-premium" placeholder="Descrição (Ex: Mercado, Luz)" required>
+                        <select id="categoria" class="input-premium">
+                            <option value="Moradia">Moradia</option>
+                            <option value="Alimentação">Alimentação</option>
+                            <option value="Transporte">Transporte</option>
+                            <option value="Lazer">Lazer</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-grid">
+                        <select id="tipoContaSelect" class="input-premium" onchange="alternarCamposTipo()">
+                            <option value="normal">Conta Normal (Apenas este mês)</option>
+                            <option value="recorrente">Conta Fixa / Recorrente (Todo mês)</option>
+                            <option value="parcelado">Conta Parcelada</option>
+                        </select>
+                        <input type="date" id="vencimento" class="input-premium" required>
+                    </div>
+
+                    <div id="camposParcelas" class="form-grid" style="display: none; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px dashed var(--border); margin-bottom: 1rem;">
+                        <div>
+                            <label style="font-size: 0.8rem; color: var(--text-muted);">Qtd de Parcelas</label>
+                            <input type="number" id="qtdParcelasInput" class="input-premium" style="margin-bottom:0;" value="2" min="2" oninput="calcularTotalParcelas()">
                         </div>
-                        <div style="display:flex; flex-direction:column;"><label>Valor (R$)</label><input type="number" id="valorInput" class="input-premium" step="0.01" required></div>
-                        <div style="display:flex; flex-direction:column;"><label>Vencimento</label><input type="date" id="vencimento" class="input-premium" required></div>
+                        <div>
+                            <label style="font-size: 0.8rem; color: var(--text-muted);">Valor de Cada Parcela</label>
+                            <input type="number" step="0.01" id="valorParcelaInput" class="input-premium" style="margin-bottom:0;" placeholder="R$ 0,00" oninput="calcularTotalParcelas()">
+                        </div>
+                        <div style="grid-column: 1 / -1; margin-top: 5px;">
+                            <p style="font-size: 0.85rem; color: var(--warning);">Valor Total Calculado: <strong id="textoValorTotal">R$ 0,00</strong></p>
+                        </div>
                     </div>
-                    <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:1.5rem;">
-                        <input type="checkbox" id="gastoFamiliarCheck" style="width:18px; height:18px;">
-                        <label for="gastoFamiliarCheck">Este é um gasto Familiar / Conta Conjunta</label>
+
+                    <div id="campoValorNormal">
+                        <input type="number" step="0.01" id="valorInput" class="input-premium" placeholder="Valor (R$)" required>
                     </div>
-                    <button type="submit" class="btn-premium" style="width:auto;">Salvar Registro</button>
+
+                    <div style="margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="gastoFamiliarCheck" style="width:18px; height:18px; cursor:pointer;">
+                        <label for="gastoFamiliarCheck" style="cursor:pointer; font-size:0.9rem;">💜 Marcar como Gasto Conjunto / Familiar</label>
+                    </div>
+
+                    <button type="submit" class="btn-premium">Salvar Gasto</button>
                 </form>
             </div>
 
             <div class="table-responsive">
                 <table>
                     <thead>
-                        <tr><th>Descrição</th><th>Categoria</th><th>Quem Postou</th><th>Vencimento</th><th>Valor</th><th>Tipo</th><th>Ações</th></tr>
+                        <tr>
+                            <th>Descrição</th>
+                            <th>Categoria</th>
+                            <th>Quem Postou</th>
+                            <th>Vencimento</th>
+                            <th>Valor</th>
+                            <th>Tipo</th>
+                            <th>Ações</th>
+                        </tr>
                     </thead>
                     <tbody id="tabelaCorpo"></tbody>
                 </table>
             </div>
         </div>
-        <div class="glass-card"><canvas id="graficoCategorias"></canvas></div>
+
+        <div class="glass-card" style="max-height: 380px;">
+            <h3 style="margin-bottom: 1rem;">Distribuição por Categoria</h3>
+            <canvas id="graficoCategorias"></canvas>
+        </div>
     </div>
 </div>
 
-<script src="./app.js?v=3"></script>
+<script src="./app.js?v=5"></script>
 </body>
 </html>

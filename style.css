@@ -265,3 +265,17 @@ tr.linha-paga {
     cursor: pointer; 
     font-size: 0.8rem; 
 }
+
+.btn-sync {
+    background: #475569;
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.btn-sync:hover {
+    background: #334155;
+}

@@ -3,202 +3,328 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão Financeira Premium</title>
+    <title>Sua Carteira | Gestão Financeira Inteligente</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg: #0f172a; --card: #1e293b; --text: #f8fafc;
-            --primary: #6366f1; --success: #10b981; --danger: #ef4444;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --primary: #1e3a8a; /* Azul Marinho Confiança */
+            --primary-light: #eff6ff;
+            --success: #10b981; /* Verde Dinheiro / Prosperidade */
+            --success-light: #ecfdf5;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --purple: #8b5cf6;
+            --border: #e2e8f0;
         }
-        body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        .login-card, .container { max-width: 1000px; margin: 50px auto; background: var(--card); padding: 30px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); }
-        .input-group { margin-bottom: 15px; display: flex; flex-direction: column; }
-        .input-group label { margin-bottom: 5px; font-weight: bold; }
-        input, select, button { padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white; font-size: 1rem; }
-        button { background: var(--primary); cursor: pointer; border: none; font-weight: bold; }
-        button:hover { opacity: 0.9; }
-        .grid-dash { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .card-dash { background: #334155; padding: 20px; border-radius: 8px; text-align: center; }
-        .card-dash h3 { margin: 0 0 10px 0; font-size: 0.9rem; color: #94a3b8; }
-        .card-dash p { margin: 0; font-size: 1.8rem; font-weight: bold; }
-        .tab-btn { background: #334155; margin-right: 5px; padding: 8px 12px; }
-        .tab-btn.active { background: var(--primary); }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #475569; }
-        th { background: #334155; }
-        .linha-paga { text-decoration: line-through; opacity: 0.5; }
-        .flex-container { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px; }
-        @media(max-width: 768px) { .flex-container { grid-template-columns: 1fr; } }
+
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            background: var(--bg); 
+            color: var(--text-main); 
+            margin: 0; 
+            padding: 0;
+            line-height: 1.5;
+        }
+
+        /* 🔐 DESIGN DA TELA DE LOGIN SCREEN */
+        .login-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+            padding: 20px;
+        }
+
+        .login-card { 
+            width: 100%;
+            max-width: 400px; 
+            background: var(--surface); 
+            padding: 40px 30px; 
+            border-radius: 16px; 
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); 
+        }
+
+        .login-card h2 {
+            margin: 0 0 8px 0;
+            color: var(--primary);
+            font-size: 1.75rem;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .login-card p {
+            margin: 0 0 24px 0;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            text-align: center;
+        }
+
+        /* 📊 DESIGN DO APP CONTAINER */
+        .app-header {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .main-container { 
+            max-width: 1200px; 
+            margin: 30px auto; 
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        /* Inputs, Grupos e Elementos de Formulário */
+        .input-group { margin-bottom: 20px; display: flex; flex-direction: column; }
+        .input-group label { margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: var(--text-main); }
+        
+        input, select { 
+            padding: 12px; 
+            border-radius: 8px; 
+            border: 1px solid var(--border); 
+            background: var(--surface); 
+            color: var(--text-main); 
+            font-size: 0.95rem; 
+            transition: all 0.2s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+        }
+
+        button { 
+            padding: 12px 20px;
+            border-radius: 8px; 
+            border: none;
+            background: var(--primary); 
+            color: white; 
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer; 
+            transition: all 0.2s;
+        }
+        button:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+
+        /* Abas Estilo Tags Modernas */
+        .tabs-wrapper { margin-bottom: 25px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .tab-btn { background: #e2e8f0; color: #475569; border-radius: 20px; padding: 8px 16px; font-size: 0.9rem; }
+        .tab-btn.active { background: var(--primary); color: white; }
+
+        /* Cards do Dashboard */
+        .grid-dash { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 35px; }
+        .card-dash { background: var(--surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
+        .card-dash h3 { margin: 0 0 8px 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+        .card-dash p { margin: 0; font-size: 1.8rem; font-weight: 700; }
+        
+        /* Cores Temáticas dos Cards */
+        .card-salario { border-left: 5px solid var(--primary); }
+        .card-familiar { border-left: 5px solid var(--purple); background: #faf5ff; }
+        .card-familiar p { color: var(--purple); }
+        .card-apagar { border-left: 5px solid var(--danger); background: var(--danger-light); }
+        .card-apagar p { color: var(--danger); }
+        .card-saldo { border-left: 5px solid var(--success); background: var(--success-light); }
+        .card-saldo p { color: var(--success); }
+
+        .card-salario input {
+            width: 100%; font-size: 1.8rem; font-weight: 700; color: var(--primary); 
+            background: transparent; border: none; padding: 0; text-align: left;
+        }
+
+        /* Layout em blocos limpos */
+        .flex-container { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 30px; }
+        .section-card { background: var(--surface); padding: 30px; border-radius: 12px; border: 1px solid var(--border); }
+        .section-card h3 { margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; color: var(--primary); font-weight: 700; }
+
+        /* Tabelas Elegantes */
+        .table-wrapper { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-top: 35px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 14px 20px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
+        th { background: #f1f5f9; color: var(--text-muted); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8fafc; }
+        .linha-paga { text-decoration: line-through; opacity: 0.4; background: #f1f5f9 !important; }
+
+        /* Badges de Status */
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; }
+        .badge-ind { background: #dbeafe; color: #1e40af; }
+        .badge-conj { background: #f3e8ff; color: #6b21a8; }
+
+        @media(max-width: 900px) { .flex-container { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
-    <div id="telaLogin" class="login-card" style="max-width: 400px;">
-        <h2 style="margin-top:0; text-align: center;">Acessar Sistema</h2>
-        <div class="input-group">
-            <label>E-mail:</label>
-            <input type="email" id="loginEmail" placeholder="seu@email.com" required>
+    <div id="telaLogin" class="login-wrapper">
+        <div class="login-card">
+            <h2>Bem-vindo</h2>
+            <p>Monitore seus gastos e conquiste seus objetivos</p>
+            <div class="input-group">
+                <label>E-mail Corporativo ou Pessoal</label>
+                <input type="email" id="loginEmail" placeholder="exemplo@carteira.com" required>
+            </div>
+            <div class="input-group">
+                <label>Senha de Acesso</label>
+                <input type="password" id="loginSenha" placeholder="••••••••" required>
+            </div>
+            <button type="button" id="btnLogar" style="width: 100%; margin-top: 10px;">Entrar na Carteira</button>
         </div>
-        <div class="input-group">
-            <label>Senha:</label>
-            <input type="password" id="loginSenha" placeholder="Sua senha do banco" required>
-        </div>
-        <button type="button" id="btnLogar" style="width: 100%;">Entrar no Sistema</button>
     </div>
 
-    <div id="appContainer" class="container" style="display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <span id="userDisplayTag" style="font-weight: bold; color: #94a3b8;">👤 Carregando usuário...</span>
-            <button id="btnDeslogar" style="background: var(--danger); padding: 5px 10px; font-size: 0.9rem;">Sair</button>
-        </div>
-
-        <div style="margin-bottom: 20px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
-            <div id="tabsMeses" style="display: inline-block;"></div>
-            <button id="btnNovoMes" style="background: #475569; padding: 8px 12px;">+ Novo Mês</button>
-        </div>
-
-        <div class="grid-dash">
-            <div class="card-dash">
-                <h3>Meu Salário (Este Mês)</h3>
-                <input type="number" id="salarioInput" placeholder="R$ 0,00" style="width: 80%; text-align: center; font-size: 1.3rem; font-weight: bold; background: transparent; border: none; border-bottom: 2px solid var(--primary); border-radius: 0;">
+    <div id="appContainer" style="display: none;">
+        <header class="app-header">
+            <div class="header-content">
+                <span id="userDisplayTag" style="font-weight: 500; font-size: 1rem; opacity: 0.9;">👤 Carregando...</span>
+                <button id="btnDeslogar" style="background: rgba(255,255,255,0.15); font-size: 0.85rem; padding: 6px 14px;">Sair com segurança</button>
             </div>
-            <div class="card-dash">
-                <h3>Gastos Conjuntos / Familiares</h3>
-                <p id="dashFamiliar" style="color: #c084fc;">R$ 0,00</p>
-            </div>
-            <div class="card-dash">
-                <h3>Meus Gastos (A Pagar)</h3>
-                <p id="dashAPagar" style="color: var(--danger);">R$ 0,00</p>
-            </div>
-            <div class="card-dash">
-                <h3>Saldo Restante</h3>
-                <p id="dashSaldo" style="color: var(--success);">R$ 0,00</p>
-            </div>
-        </div>
+        </header>
 
-        <div class="flex-container">
-            <div>
-                <h3>Lançar Nova Despesa</h3>
-                <form id="gastoForm">
-                    <div class="input-group">
-                        <label>Descrição do Gasto:</label>
-                        <input type="text" id="desc" placeholder="Ex: Supermercado, Aluguel" required>
-                    </div>
-                    
-                    <div class="input-group">
-                        <label>Categoria:</label>
-                        <select id="categoria">
-                            <option value="Moradia">Moradia</option>
-                            <option value="Alimentação">Alimentação</option>
-                            <option value="Transporte">Transporte</option>
-                            <option value="Lazer">Lazer</option>
-                            <option value="Saúde">Saúde</option>
-                            <option value="Outros">Outros</option>
-                        </select>
-                    </div>
-
-                    <div class="input-group">
-                        <label>Vencimento:</label>
-                        <input type="date" id="vencimento" required>
-                    </div>
-
-                    <div class="input-group">
-                        <label>Tipo de Conta:</label>
-                        <select id="tipoContaSelect">
-                            <option value="normal">Gasto À Vista / Normal</option>
-                            <option value="parcelado">Gasto Parcelado</option>
-                            <option value="recorrente">Gasto Fixo / Recorrente (12 meses)</option>
-                        </select>
-                    </div>
-
-                    <div id="camposParcelas" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-                        <div class="input-group" style="margin:0;">
-                            <label>Qtd Parcelas:</label>
-                            <input type="number" id="qtdParcelasInput" value="2" min="2">
-                        </div>
-                        <div class="input-group" style="margin:0;">
-                            <label>Valor da Parcela:</label>
-                            <input type="number" id="valorParcelaInput" placeholder="0.00" step="0.01">
-                        </div>
-                        <div style="grid-column: span 2; font-size: 0.9rem; color: #94a3b8; margin-top: 5px;">
-                            Total do Parcelamento: <span id="textoValorTotal" style="color: white; font-weight: bold;">R$ 0,00</span>
-                        </div>
-                    </div>
-
-                    <div class="input-group" id="campoValorNormal">
-                        <label>Valor Total:</label>
-                        <input type="number" id="valorInput" placeholder="0.00" step="0.01" required>
-                    </div>
-
-                    <div style="margin: 20px 0; display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="gastoFamiliarCheck" style="width: 18px; height: 18px; cursor: pointer;">
-                        <label for="gastoFamiliarCheck" style="cursor: pointer; font-weight: bold; color: #c084fc;">💜 Este é um gasto familiar / conjunto</label>
-                    </div>
-
-                    <button type="submit" style="width: 100%; background: var(--success);">Adicionar Gasto</button>
-                </form>
+        <main class="main-container">
+            <div class="tabs-wrapper">
+                <div id="tabsMeses" style="display: inline-flex; gap: 6px;"></div>
+                <button id="btnNovoMes" style="background: var(--text-main); font-size: 0.85rem; padding: 8px 14px; border-radius: 20px;">+ Novo Mês</button>
             </div>
 
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                <h3>Distribuição por Categorias</h3>
-                <div style="width: 100%; max-width: 300px;">
-                    <canvas id="graficoCategorias"></canvas>
+            <div class="grid-dash">
+                <div class="card-dash card-salario">
+                    <h3>Renda Mensal Disponível</h3>
+                    <input type="number" id="salarioInput" placeholder="R$ 0,00">
+                </div>
+                <div class="card-dash card-familiar">
+                    <h3>Despesas Conjuntas</h3>
+                    <p id="dashFamiliar">R$ 0,00</p>
+                </div>
+                <div class="card-dash card-apagar">
+                    <h3>Minhas Contas em Aberto</h3>
+                    <p id="dashAPagar">R$ 0,00</p>
+                </div>
+                <div class="card-dash card-saldo">
+                    <h3>Saldo Líquido Estimado</h3>
+                    <p id="dashSaldo">R$ 0,00</p>
                 </div>
             </div>
-        </div>
 
-        <div style="overflow-x: auto; margin-top: 40px;">
-            <h3>Extrato de Lançamentos</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Descrição</th>
-                        <th>Categoria</th>
-                        <th>Quem Lançou</th>
-                        <th>Vencimento</th>
-                        <th>Valor</th>
-                        <th>Tipo</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="tabelaCorpo"></tbody>
-            </table>
-        </div>
+            <div class="flex-container">
+                <div class="section-card">
+                    <h3>Lançar Novo Registro</h3>
+                    <form id="gastoForm">
+                        <div class="input-group">
+                            <label>Descrição do Gasto</label>
+                            <input type="text" id="desc" placeholder="Ex: Financiamento, Mercado" required>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="input-group">
+                                <label>Categoria</label>
+                                <select id="categoria">
+                                    <option value="Moradia">🏡 Moradia</option>
+                                    <option value="Alimentação">🍕 Alimentação</option>
+                                    <option value="Transporte">🚗 Transporte</option>
+                                    <option value="Lazer">🍿 Lazer</option>
+                                    <option value="Saúde">💊 Saúde</option>
+                                    <option value="Outros">📦 Outros</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>Data de Vencimento</label>
+                                <input type="date" id="vencimento" required>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Fluxo de Pagamento</label>
+                            <select id="tipoContaSelect">
+                                <option value="normal">Gasto À Vista / Único</option>
+                                <option value="parcelado">Dividido em Parcelas</option>
+                                <option value="recorrente">Mensalidade Fixa (Recorrente)</option>
+                            </select>
+                        </div>
+
+                        <div id="camposParcelas" style="display: none; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px dashed var(--border);">
+                            <div class="input-group" style="margin:0;">
+                                <label>Nº Total Parcelas</label>
+                                <input type="number" id="qtdParcelasInput" value="2" min="2">
+                            </div>
+                            <div class="input-group" style="margin:0;">
+                                <label>Valor por Parcala</label>
+                                <input type="number" id="valorParcelaInput" placeholder="0.00" step="0.01">
+                            </div>
+                            <div style="grid-column: span 2; font-size: 0.85rem; color: var(--text-muted); margin-top: 5px;">
+                                Custo acumulado do lote: <span id="textoValorTotal" style="color: var(--text-main); font-weight: bold;">R$ 0,00</span>
+                            </div>
+                        </div>
+
+                        <div class="input-group" id="campoValorNormal">
+                            <label>Valor Total do Gasto</label>
+                            <input type="number" id="valorInput" placeholder="0.00" step="0.01" required>
+                        </div>
+
+                        <div style="margin: 25px 0 20px 0; display: flex; align-items: center; gap: 10px; background: #faf5ff; padding: 12px; border-radius: 8px;">
+                            <input type="checkbox" id="gastoFamiliarCheck" style="width: 18px; height: 18px; cursor: pointer;">
+                            <label for="gastoFamiliarCheck" style="cursor: pointer; font-weight: 600; color: var(--purple); font-size: 0.9rem;">💜 Compartilhar com a despesa familiar / conjunta</label>
+                        </div>
+
+                        <button type="submit" style="width: 100%; background: var(--success); font-size: 1rem; padding: 14px;">Confirmar e Salvar Registro</button>
+                    </form>
+                </div>
+
+                <div class="section-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <h3>Divisão de Custos</h3>
+                    <div style="width: 100%; max-width: 260px;">
+                        <canvas id="graficoCategorias"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <div style="padding: 20px; border-bottom: 1px solid var(--border); background: var(--surface)">
+                    <h3 style="margin:0; font-size: 1.1rem; color: var(--primary); font-weight: 700;">Extrato Consolidado do Mês</h3>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item / Descrição</th>
+                                <th>Categoria</th>
+                                <th>Responsável</th>
+                                <th>Vencimento</th>
+                                <th>Valor</th>
+                                <th>Modalidade</th>
+                                <th style="text-align: center;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaCorpo"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Mapeia o botão de login
             const btnLogar = document.getElementById('btnLogar');
-            if (btnLogar) {
-                btnLogar.addEventListener('click', () => {
-                    if (typeof executarLogin === 'function') {
-                        executarLogin();
-                    } else {
-                        alert('Erro: A função executarLogin não foi encontrada no app.js');
-                    }
-                });
-            }
-
-            // Mapeia o botão de deslogar
+            if (btnLogar) btnLogar.addEventListener('click', () => { if (typeof executarLogin === 'function') executarLogin(); });
             const btnDeslogar = document.getElementById('btnDeslogar');
-            if (btnDeslogar) {
-                btnDeslogar.addEventListener('click', () => {
-                    if (typeof deslogar === 'function') deslogar();
-                });
-            }
-
-            // Mapeia o botão de novo mês
+            if (btnDeslogar) btnDeslogar.addEventListener('click', () => { if (typeof deslogar === 'function') deslogar(); });
             const btnNovoMes = document.getElementById('btnNovoMes');
-            if (btnNovoMes) {
-                btnNovoMes.addEventListener('click', () => {
-                    if (typeof criarNovoMes === 'function') criarNovoMes();
-                });
-            }
+            if (btnNovoMes) btnNovoMes.addEventListener('click', () => { if (typeof criarNovoMes === 'function') criarNovoMes(); });
         });
     </script>
-
-    <script src="./app.js?v=9"></script>
+    <script src="./app.js?v=11"></script>
 </body>
 </html>

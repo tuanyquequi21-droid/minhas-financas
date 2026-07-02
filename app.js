@@ -1,8 +1,8 @@
 // =========================================================================
 // ⚠️ EDITE AS DUAS LINHAS ABAIXO COLOCANDO SUAS CHAVES DO SUPABASE
 // =========================================================================
-const SUPABASE_URL = "https://SEU-PROJETO.supabase.co"; 
-const SUPABASE_KEY = "SUA-CHAVE-ANON-PUBLIC";           
+const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co"; 
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           
 // =========================================================================
 
 // Criação do cliente oficial do Supabase utilizando a CDN estável externa

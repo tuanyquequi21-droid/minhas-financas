@@ -3,9 +3,14 @@
 // =========================================================================
 const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co"; 
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           
-// =========================================================================
+// ======// =========================================================================
 
-const bancoSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const bancoSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true
+  }
+});
 
 let usuarioLogado = null;
 let mesSelecionado = "2026-07";
@@ -14,7 +19,7 @@ let gastos = [];
 let salarios = {};
 let meuGrafico = null;
 
-// Função disparada ao clicar no botão "Entrar"
+// Função de Login
 async function executarLogin() {
     const emailField = document.getElementById('loginEmail');
     const senhaField = document.getElementById('loginSenha');
@@ -30,19 +35,14 @@ async function executarLogin() {
     try {
         const { data, error } = await bancoSupabase.auth.signInWithPassword({ email: email, password: senha });
         if (error) {
-            alert("❌ Supabase recusou o login: " + error.message);
+            alert("❌ Erro de Login: " + error.message);
         } else {
             usuarioLogado = data.user;
-            // Salva o email localmente para persistir o login após o F5
             localStorage.setItem('sessao_usuario', JSON.stringify(usuarioLogado));
             entrarNoPainel();
         }
     } catch (err) {
-        console.warn("Rede instável ou bloqueada. Entrando em Modo Local.");
-        usuarioLogado = { email: email };
-        // Também salva no modo local de contingência
-        localStorage.setItem('sessao_usuario', JSON.stringify(usuarioLogado));
-        entrarNoPainel();
+        alert("Erro ao tentar conectar com o servidor de autenticação.");
     }
 }
 
@@ -50,25 +50,51 @@ function entrarNoPainel() {
     document.getElementById('telaLogin').style.display = 'none';
     document.getElementById('appContainer').style.display = 'block';
     document.getElementById('userDisplayTag').innerText = `👤 Logado como: ${usuarioLogado.email}`;
-    carregarDados();
+    carregarDadosNuvem();
 }
 
 function deslogar() {
     try { bancoSupabase.auth.signOut(); } catch(e){}
-    // Limpa a sessão salva para que o login seja exigido na próxima vez
     localStorage.removeItem('sessao_usuario');
     usuarioLogado = null;
     window.location.reload();
 }
 
-function carregarDados() {
-    gastos = JSON.parse(localStorage.getItem('cloud_gastos')) || [];
-    salarios = JSON.parse(localStorage.getItem('cloud_salarios')) || {};
-    atualizarInterface();
+// 🌐 BUSCA OS DADOS DIRETO DA NUVEM (SUPABASE)
+async function carregarDadosNuvem() {
+    try {
+        // 1. Busca os gastos salvos na tabela do banco de dados
+        const { data: dadosGastos, error: erroGastos } = await bancoSupabase
+            .from('gastos')
+            .select('*');
+
+        if (erroGastos) throw erroGastos;
+        gastos = dadosGastos || [];
+
+        // 2. Busca os salários salvos na tabela de salários
+        const { data: dadosSalarios, error: erroSalarios } = await bancoSupabase
+            .from('salarios')
+            .select('*');
+
+        if (erroSalarios) throw erroSalarios;
+        
+        // Converte o formato do banco para o formato do nosso app
+        salarios = {};
+        if (dadosSalarios) {
+            dadosSalarios.forEach(s => {
+                salarios[s.chave_salario] = s.valor;
+            });
+        }
+
+        atualizarInterface();
+    } catch (error) {
+        console.error("Erro ao carregar dados em nuvem, usando contingência local:", error);
+        // Se a tabela ainda não estiver criada no Supabase, ele avisa no console
+    }
 }
 
-// GERENCIADOR DE RECORRÊNCIA E PARCELAS
-function salvarGasto(e) {
+// 🌐 SALVA O GASTO DIRETO NA NUVEM
+async function salvarGasto(e) {
     e.preventDefault();
     const desc = document.getElementById('desc').value;
     const categoria = document.getElementById('categoria').value;
@@ -80,6 +106,7 @@ function salvarGasto(e) {
     
     const dataBase = new Date(vencimentoOriginal + "T00:00:00");
     const idGrupo = Date.now().toString();
+    let novosGastosNuvem = [];
 
     if (tipoConta === "3") {
         const qtdParcelas = parseInt(prompt("Em quantas vezes deseja parcelar?", "2")) || 2;
@@ -92,17 +119,15 @@ function salvarGasto(e) {
             const ano = dataParcela.getFullYear();
             const mes = String(dataParcela.getMonth() + 1).padStart(2, '0');
             const dia = String(dataParcela.getDate()).padStart(2, '0');
-            const novaDataStr = `${ano}-${mes}-${dia}`;
 
-            gastos.push({
-                id: `${idGrupo}_${i}`,
-                idGrupo: idGrupo,
-                usuarioDono: usuarioLogado.email,
+            novosGastosNuvem.push({
+                id_grupo: idGrupo,
+                usuario_dono: usuarioLogado.email,
                 desc: `${desc} (${i + 1}/${qtdParcelas})`,
                 categoria,
                 valor: valorParcela,
-                vencimento: novaDataStr,
-                ehFamiliar,
+                vencimento: `${ano}-${mes}-${dia}`,
+                eh_familiar: ehFamiliar,
                 pago: false,
                 tipo: 'parcelado'
             });
@@ -115,52 +140,75 @@ function salvarGasto(e) {
             const ano = dataFixa.getFullYear();
             const mes = String(dataFixa.getMonth() + 1).padStart(2, '0');
             const dia = String(dataFixa.getDate()).padStart(2, '0');
-            const novaDataStr = `${ano}-${mes}-${dia}`;
 
-            gastos.push({
-                id: `${idGrupo}_f${i}`,
-                idGrupo: idGrupo,
-                usuarioDono: usuarioLogado.email,
+            novosGastosNuvem.push({
+                id_grupo: idGrupo,
+                usuario_dono: usuarioLogado.email,
                 desc: `${desc} 🔄`,
                 categoria,
                 valor: valorTotal,
-                vencimento: novaDataStr,
-                ehFamiliar,
+                vencimento: `${ano}-${mes}-${dia}`,
+                eh_familiar: ehFamiliar,
                 pago: false,
                 tipo: 'recorrente'
             });
         }
     } else {
-        gastos.push({
-            id: idGrupo,
-            idGrupo: idGrupo,
-            usuarioDono: usuarioLogado.email,
-            desc, categoria, valor: valorTotal, vencimento: vencimentoOriginal, ehFamiliar, pago: false, tipo: 'normal'
+        novosGastosNuvem.push({
+            id_grupo: idGrupo,
+            usuario_dono: usuarioLogado.email,
+            desc, categoria, valor: valorTotal, vencimento: vencimentoOriginal, eh_familiar: ehFamiliar, pago: false, tipo: 'normal'
         });
     }
 
-    localStorage.setItem('cloud_gastos', JSON.stringify(gastos));
-    document.getElementById('gastoForm').reset();
-    document.getElementById('vencimento').value = new Date().toISOString().split('T')[0];
-    atualizarInterface();
-}
-
-function deletarGasto(id, idGrupo, tipo) {
-    if (tipo === 'parcelado' || tipo === 'recorrente') {
-        const conf = confirm("Esta conta faz parte de uma série. Deseja apagar TODAS as parcelas/recorrências dela?");
-        if (conf) gastos = gastos.filter(g => g.idGrupo !== idGrupo);
-        else gastos = gastos.filter(g => g.id !== id);
-    } else {
-        gastos = gastos.filter(g => g.id !== id);
+    try {
+        // Envia o array de novos gastos direto para a tabela do Supabase
+        const { error } = await bancoSupabase.from('gastos').insert(novosGastosNuvem);
+        if (error) throw error;
+        
+        document.getElementById('gastoForm').reset();
+        document.getElementById('vencimento').value = new Date().toISOString().split('T')[0];
+        await carregarDadosNuvem(); // Recarrega os dados atualizados da nuvem
+    } catch (err) {
+        alert("Erro ao salvar dados na nuvem: " + err.message);
     }
-    localStorage.setItem('cloud_gastos', JSON.stringify(gastos));
-    atualizarInterface();
 }
 
-function alternarStatusPago(id) {
-    gastos = gastos.map(g => { if(g.id === id) g.pago = !g.pago; return g; });
-    localStorage.setItem('cloud_gastos', JSON.stringify(gastos));
-    atualizarInterface();
+// 🌐 DELETA DO BANCO DE DADOS
+async function deletarGasto(id, idGrupo, tipo) {
+    try {
+        if (tipo === 'parcelado' || tipo === 'recorrente') {
+            const conf = confirm("Esta conta faz parte de uma série. Deseja apagar TODAS as parcelas/recorrências dela?");
+            if (conf) {
+                const { error } = await bancoSupabase.from('gastos').delete().eq('id_grupo', idGrupo);
+                if (error) throw error;
+            } else {
+                const { error } = await bancoSupabase.from('gastos').delete().eq('id', id);
+                if (error) throw error;
+            }
+        } else {
+            const { error } = await bancoSupabase.from('gastos').delete().eq('id', id);
+            if (error) throw error;
+        }
+        await carregarDadosNuvem();
+    } catch (err) {
+        alert("Erro ao deletar da nuvem: " + err.message);
+    }
+}
+
+// 🌐 ALTERNA STATUS DE PAGO NA NUVEM
+async function alternarStatusPago(id, statusAtual) {
+    try {
+        const { error } = await bancoSupabase
+            .from('gastos')
+            .update({ pago: !statusAtual })
+            .eq('id', id);
+
+        if (error) throw error;
+        await carregarDadosNuvem();
+    } catch (err) {
+        alert("Erro ao atualizar status na nuvem: " + err.message);
+    }
 }
 
 function criarNovoMes() {
@@ -173,6 +221,7 @@ function criarNovoMes() {
     }
 }
 
+// ATUALIZAÇÃO DA TELA
 function atualizarInterface() {
     const tabsContainer = document.getElementById('tabsMeses');
     if(!tabsContainer) return;
@@ -188,10 +237,21 @@ function atualizarInterface() {
 
     const salKey = `${usuarioLogado?.email}_${mesSelecionado}`;
     document.getElementById('salarioInput').value = salarios[salKey] || '';
-    document.getElementById('salarioInput').onchange = (e) => {
-        salarios[salKey] = parseFloat(e.target.value) || 0;
-        localStorage.setItem('cloud_salarios', JSON.stringify(salarios));
-        atualizarInterface();
+    
+    // 🌐 SALVA O SALÁRIO NA NUVEM AO MUDAR O VALOR
+    document.getElementById('salarioInput').onchange = async (e) => {
+        const valorSalario = parseFloat(e.target.value) || 0;
+        try {
+            // Tenta fazer um "Upsert" (insere se não existir, atualiza se já existir)
+            const { error } = await bancoSupabase
+                .from('salarios')
+                .upsert({ chave_salario: salKey, valor: valorSalario }, { onConflict: 'chave_salario' });
+            
+            if (error) throw error;
+            await carregarDadosNuvem();
+        } catch (err) {
+            alert("Erro ao salvar salário na nuvem: " + err.message);
+        }
     };
 
     const meuSalarioAtual = salarios[salKey] || 0;
@@ -203,9 +263,9 @@ function atualizarInterface() {
 
     gastos.forEach(g => {
         if(g.vencimento.startsWith(mesSelecionado)) {
-            const visivel = (g.usuarioDono === usuarioLogado.email) || g.ehFamiliar;
+            const visivel = (g.usuario_dono === usuarioLogado.email) || g.eh_familiar;
             if(visivel) {
-                if(g.ehFamiliar) totalFamiliarDoMes += g.valor;
+                if(g.eh_familiar) totalFamiliarDoMes += g.valor;
                 else if(!g.pago) meusGastosAPagar += g.valor;
                 resumoGrafico[g.categoria] = (resumoGrafico[g.categoria] || 0) + g.valor;
 
@@ -213,19 +273,19 @@ function atualizarInterface() {
                 if(g.pago) tr.className = "linha-paga";
                 
                 let etiquetaTipo = '👤 Individual';
-                if(g.ehFamiliar) etiquetaTipo = '💜 Conjunta';
+                if(g.eh_familiar) etiquetaTipo = '💜 Conjunta';
                 if(g.tipo === 'parcelado') etiquetaTipo += ' 📦';
                 
                 tr.innerHTML = `
                     <td><strong>${g.desc}</strong></td>
                     <td>${g.categoria}</td>
-                    <td><small>${g.usuarioDono ? g.usuarioDono.split('@')[0] : 'user'}</small></td>
+                    <td><small>${g.usuario_dono ? g.usuario_dono.split('@')[0] : 'user'}</small></td>
                     <td>${g.vencimento}</td>
                     <td>R$ ${g.valor.toFixed(2)}</td>
                     <td>${etiquetaTipo}</td>
                     <td>
-                        <button class="tab-btn" style="padding:4px 8px; font-size:0.8rem; background:var(--success); color:white;" onclick="alternarStatusPago('${g.id}')">Pago</button>
-                        <button class="tab-btn" style="padding:4px 8px; font-size:0.8rem; background:var(--danger); color:white;" onclick="deletarGasto('${g.id}', '${g.idGrupo}', '${g.tipo}')">X</button>
+                        <button class="tab-btn" style="padding:4px 8px; font-size:0.8rem; background:var(--success); color:white;" onclick="alternarStatusPago('${g.id}', ${g.pago})">Pago</button>
+                        <button class="tab-btn" style="padding:4px 8px; font-size:0.8rem; background:var(--danger); color:white;" onclick="deletarGasto('${g.id}', '${g.id_grupo}', '${g.tipo}')">X</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -256,15 +316,23 @@ function renderizarGrafico(dados) {
     });
 }
 
-// 🔐 NOVO VERIFICADOR AUTOMÁTICO DE SESSÃO (Roda assim que a página abre)
-window.addEventListener('DOMContentLoaded', () => {
+// CHECK DE SESSÃO AO INICIAR
+window.addEventListener('DOMContentLoaded', async () => {
     const vencField = document.getElementById('vencimento');
     if(vencField) vencField.value = new Date().toISOString().split('T')[0];
 
-    // Verifica se já existia um utilizador logado antes do F5
+    try {
+        const { data: { session } } = await bancoSupabase.auth.getSession();
+        if (session && session.user) {
+            usuarioLogado = session.user;
+            entrarNoPainel();
+            return;
+        }
+    } catch (e) {}
+
     const sessaoSalva = localStorage.getItem('sessao_usuario');
     if (sessaoSalva) {
         usuarioLogado = JSON.parse(sessaoSalva);
-        entrarNoPainel(); // Se sim, pula a tela de login direto para o painel
+        entrarNoPainel();
     }
 });

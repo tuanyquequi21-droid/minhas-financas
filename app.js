@@ -5,17 +5,15 @@ const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           
 // =========================================================================
 
-// Criação do cliente oficial do Supabase utilizando a CDN estável externa
 const bancoSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioLogado = null;
 let mesSelecionado = "2026-07";
-let mesesDisponiveis = ["2026-07", "2026-08", "2026-09"];
+let mesesDisponiveis = ["2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
 let gastos = [];
 let salarios = {};
 let meuGrafico = null;
 
-// Função disparada ao clicar no botão "Entrar"
 async function executarLogin() {
     const emailField = document.getElementById('loginEmail');
     const senhaField = document.getElementById('loginSenha');
@@ -29,9 +27,7 @@ async function executarLogin() {
     const senha = senhaField.value;
 
     try {
-        // 1. Tenta fazer o login real na nuvem do Supabase
-        const { data, error } = await supabase.auth.signInWithPassword({ email: email, password: senha });
-        
+        const { data, error } = await bancoSupabase.auth.signInWithPassword({ email: email, password: senha });
         if (error) {
             alert("❌ Supabase recusou o login: " + error.message);
         } else {
@@ -39,7 +35,6 @@ async function executarLogin() {
             entrarNoPainel();
         }
     } catch (err) {
-        // 2. SISTEMA DE CONTINGÊNCIA: Se a rede ou CORS bloquear, libera o acesso localmente
         console.warn("Rede instável ou bloqueada. Entrando em Modo Local.");
         usuarioLogado = { email: email };
         entrarNoPainel();
@@ -54,7 +49,7 @@ function entrarNoPainel() {
 }
 
 function deslogar() {
-    try { supabase.auth.signOut(); } catch(e){}
+    try { bancoSupabase.auth.signOut(); } catch(e){}
     usuarioLogado = null;
     window.location.reload();
 }
@@ -65,19 +60,81 @@ function carregarDados() {
     atualizarInterface();
 }
 
+// 🚀 REQUISITOS ADICIONADOS: GERENCIADOR DE RECORRÊNCIA E PARCELAS
 function salvarGasto(e) {
     e.preventDefault();
     const desc = document.getElementById('desc').value;
     const categoria = document.getElementById('categoria').value;
-    const valor = parseFloat(document.getElementById('valorInput').value);
-    const vencimento = document.getElementById('vencimento').value;
+    const valorTotal = parseFloat(document.getElementById('valorInput').value);
+    const vencimentoOriginal = document.getElementById('vencimento').value;
     const ehFamiliar = document.getElementById('gastoFamiliarCheck').checked;
 
-    gastos.push({
-        id: Date.now().toString(),
-        usuarioDono: usuarioLogado.email,
-        desc, categoria, valor, vencimento, ehFamiliar, pago: false
-    });
+    // Pergunta se é Fixa, Parcelada ou Normal
+    const tipoConta = prompt("Digite o tipo da conta:\n1 - Normal (Só este mês)\n2 - Fixa / Recorrente (Todo mês)\n3 - Parcelada", "1");
+    
+    const dataBase = new Date(vencimentoOriginal + "T00:00:00");
+    const idGrupo = Date.now().toString(); // Vincula as parcelas do mesmo grupo
+
+    if (tipoConta === "3") {
+        // CONTA PARCELADA
+        const qtdParcelas = parseInt(prompt("Em quantas vezes deseja parcelar?", "2")) || 2;
+        const valorParcela = valorTotal / qtdParcelas; // Cálculo automático da parcela
+
+        for (let i = 0; i < qtdParcelas; i++) {
+            const dataParcela = new Date(dataBase);
+            dataParcela.setMonth(dataBase.getMonth() + i);
+            
+            const ano = dataParcela.getFullYear();
+            const mes = String(dataParcela.getMonth() + 1).padStart(2, '0');
+            const dia = String(dataParcela.getDate()).padStart(2, '0');
+            const novaDataStr = `${ano}-${mes}-${dia}`;
+
+            gastos.push({
+                id: `${idGrupo}_${i}`,
+                idGrupo: idGrupo,
+                usuarioDono: usuarioLogado.email,
+                desc: `${desc} (${i + 1}/${qtdParcelas})`,
+                categoria,
+                valor: valorParcela,
+                vencimento: novaDataStr,
+                ehFamiliar,
+                pago: false,
+                tipo: 'parcelado'
+            });
+        }
+    } else if (tipoConta === "2") {
+        // CONTA RECORRENTE / FIXA (Replica para os próximos 12 meses para automação)
+        for (let i = 0; i < 12; i++) {
+            const dataFixa = new Date(dataBase);
+            dataFixa.setMonth(dataBase.getMonth() + i);
+            
+            const ano = dataFixa.getFullYear();
+            const mes = String(dataFixa.getMonth() + 1).padStart(2, '0');
+            const dia = String(dataFixa.getDate()).padStart(2, '0');
+            const novaDataStr = `${ano}-${mes}-${dia}`;
+
+            gastos.push({
+                id: `${idGrupo}_f${i}`,
+                idGrupo: idGrupo,
+                usuarioDono: usuarioLogado.email,
+                desc: `${desc} 🔄`,
+                categoria,
+                valor: valorTotal,
+                vencimento: novaDataStr,
+                ehFamiliar,
+                pago: false,
+                tipo: 'recorrente'
+            });
+        }
+    } else {
+        // CONTA NORMAL
+        gastos.push({
+            id: idGrupo,
+            idGrupo: idGrupo,
+            usuarioDono: usuarioLogado.email,
+            desc, categoria, valor: valorTotal, vencimento: vencimentoOriginal, ehFamiliar, pago: false, tipo: 'normal'
+        });
+    }
 
     localStorage.setItem('cloud_gastos', JSON.stringify(gastos));
     document.getElementById('gastoForm').reset();
@@ -85,8 +142,17 @@ function salvarGasto(e) {
     atualizarInterface();
 }
 
-function deletarGasto(id) {
-    gastos = gastos.filter(g => g.id !== id);
+function deletarGasto(id, idGrupo, tipo) {
+    if (tipo === 'parcelado' || tipo === 'recorrente') {
+        const conf = confirm("Esta conta faz parte de uma série (parcelada/recorrente). Deseja apagar TODAS as parcelas/recorrências dela?");
+        if (conf) {
+            gastos = gastos.filter(g => g.idGrupo !== idGrupo);
+        } else {
+            gastos = gastos.filter(g => g.id !== id);
+        }
+    } else {
+        gastos = gastos.filter(g => g.id !== id);
+    }
     localStorage.setItem('cloud_gastos', JSON.stringify(gastos));
     atualizarInterface();
 }
@@ -145,16 +211,21 @@ function atualizarInterface() {
 
                 const tr = document.createElement('tr');
                 if(g.pago) tr.className = "linha-paga";
+                
+                let etiquetaTipo = '👤 Individual';
+                if(g.ehFamiliar) etiquetaTipo = '💜 Conjunta';
+                if(g.tipo === 'parcelado') etiquetaTipo += ' 📦';
+                
                 tr.innerHTML = `
                     <td><strong>${g.desc}</strong></td>
                     <td>${g.categoria}</td>
                     <td><small>${g.usuarioDono ? g.usuarioDono.split('@')[0] : 'user'}</small></td>
                     <td>${g.vencimento}</td>
                     <td>R$ ${g.valor.toFixed(2)}</td>
-                    <td>${g.ehFamiliar ? '💜 Conjunta' : '👤 Individual'}</td>
+                    <td>${etiquetaTipo}</td>
                     <td>
                         <button class="tab-btn" style="padding:4px 8px; font-size:0.8rem; background:var(--success); color:white;" onclick="alternarStatusPago('${g.id}')">Pago</button>
-                        <button class="tab-btn" style="padding:4px 8px; font-size:0.8rem; background:var(--danger); color:white;" onclick="deletarGasto('${g.id}')">X</button>
+                        <button class="tab-btn" style="padding:4px 8px; font-size:0.8rem; background:var(--danger); color:white;" onclick="deletarGasto('${g.id}', '${g.idGrupo}', '${g.tipo}')">X</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -185,7 +256,6 @@ function renderizarGrafico(dados) {
     });
 }
 
-// Inicializador de segurança
 window.addEventListener('DOMContentLoaded', () => {
     const vencField = document.getElementById('vencimento');
     if(vencField) vencField.value = new Date().toISOString().split('T')[0];

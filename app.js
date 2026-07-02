@@ -14,6 +14,7 @@ let gastos = [];
 let salarios = {};
 let meuGrafico = null;
 
+// Função disparada ao clicar no botão "Entrar"
 async function executarLogin() {
     const emailField = document.getElementById('loginEmail');
     const senhaField = document.getElementById('loginSenha');
@@ -32,11 +33,15 @@ async function executarLogin() {
             alert("❌ Supabase recusou o login: " + error.message);
         } else {
             usuarioLogado = data.user;
+            // Salva o email localmente para persistir o login após o F5
+            localStorage.setItem('sessao_usuario', JSON.stringify(usuarioLogado));
             entrarNoPainel();
         }
     } catch (err) {
         console.warn("Rede instável ou bloqueada. Entrando em Modo Local.");
         usuarioLogado = { email: email };
+        // Também salva no modo local de contingência
+        localStorage.setItem('sessao_usuario', JSON.stringify(usuarioLogado));
         entrarNoPainel();
     }
 }
@@ -50,6 +55,8 @@ function entrarNoPainel() {
 
 function deslogar() {
     try { bancoSupabase.auth.signOut(); } catch(e){}
+    // Limpa a sessão salva para que o login seja exigido na próxima vez
+    localStorage.removeItem('sessao_usuario');
     usuarioLogado = null;
     window.location.reload();
 }
@@ -60,7 +67,7 @@ function carregarDados() {
     atualizarInterface();
 }
 
-// 🚀 REQUISITOS ADICIONADOS: GERENCIADOR DE RECORRÊNCIA E PARCELAS
+// GERENCIADOR DE RECORRÊNCIA E PARCELAS
 function salvarGasto(e) {
     e.preventDefault();
     const desc = document.getElementById('desc').value;
@@ -69,16 +76,14 @@ function salvarGasto(e) {
     const vencimentoOriginal = document.getElementById('vencimento').value;
     const ehFamiliar = document.getElementById('gastoFamiliarCheck').checked;
 
-    // Pergunta se é Fixa, Parcelada ou Normal
     const tipoConta = prompt("Digite o tipo da conta:\n1 - Normal (Só este mês)\n2 - Fixa / Recorrente (Todo mês)\n3 - Parcelada", "1");
     
     const dataBase = new Date(vencimentoOriginal + "T00:00:00");
-    const idGrupo = Date.now().toString(); // Vincula as parcelas do mesmo grupo
+    const idGrupo = Date.now().toString();
 
     if (tipoConta === "3") {
-        // CONTA PARCELADA
         const qtdParcelas = parseInt(prompt("Em quantas vezes deseja parcelar?", "2")) || 2;
-        const valorParcela = valorTotal / qtdParcelas; // Cálculo automático da parcela
+        const valorParcela = valorTotal / qtdParcelas;
 
         for (let i = 0; i < qtdParcelas; i++) {
             const dataParcela = new Date(dataBase);
@@ -103,7 +108,6 @@ function salvarGasto(e) {
             });
         }
     } else if (tipoConta === "2") {
-        // CONTA RECORRENTE / FIXA (Replica para os próximos 12 meses para automação)
         for (let i = 0; i < 12; i++) {
             const dataFixa = new Date(dataBase);
             dataFixa.setMonth(dataBase.getMonth() + i);
@@ -127,7 +131,6 @@ function salvarGasto(e) {
             });
         }
     } else {
-        // CONTA NORMAL
         gastos.push({
             id: idGrupo,
             idGrupo: idGrupo,
@@ -144,12 +147,9 @@ function salvarGasto(e) {
 
 function deletarGasto(id, idGrupo, tipo) {
     if (tipo === 'parcelado' || tipo === 'recorrente') {
-        const conf = confirm("Esta conta faz parte de uma série (parcelada/recorrente). Deseja apagar TODAS as parcelas/recorrências dela?");
-        if (conf) {
-            gastos = gastos.filter(g => g.idGrupo !== idGrupo);
-        } else {
-            gastos = gastos.filter(g => g.id !== id);
-        }
+        const conf = confirm("Esta conta faz parte de uma série. Deseja apagar TODAS as parcelas/recorrências dela?");
+        if (conf) gastos = gastos.filter(g => g.idGrupo !== idGrupo);
+        else gastos = gastos.filter(g => g.id !== id);
     } else {
         gastos = gastos.filter(g => g.id !== id);
     }
@@ -256,7 +256,15 @@ function renderizarGrafico(dados) {
     });
 }
 
+// 🔐 NOVO VERIFICADOR AUTOMÁTICO DE SESSÃO (Roda assim que a página abre)
 window.addEventListener('DOMContentLoaded', () => {
     const vencField = document.getElementById('vencimento');
     if(vencField) vencField.value = new Date().toISOString().split('T')[0];
+
+    // Verifica se já existia um utilizador logado antes do F5
+    const sessaoSalva = localStorage.getItem('sessao_usuario');
+    if (sessaoSalva) {
+        usuarioLogado = JSON.parse(sessaoSalva);
+        entrarNoPainel(); // Se sim, pula a tela de login direto para o painel
+    }
 });

@@ -6,7 +6,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // ======// =========================================================================
 
 // =========================================================================
-// SISTEMA DE GESTÃO FINANCEIRA PREMIUM (VERSÃO LOCAL INTEGRADA)
+// SISTEMA DE GESTÃO FINANCEIRA PREMIUM (VERSÃO LOCAL INTEGRADA CORRIGIDA)
 // =========================================================================
 
 let usuarioLogado = null;
@@ -16,19 +16,14 @@ let gastos = [];
 let salarios = {};
 let meuGrafico = null;
 
-// LOGIN LOCAL CORRIGIDO E BLINDADO
+// LOGIN LOCAL ROBUSTO
 function executarLogin() {
     const emailField = document.getElementById('loginEmail');
-    
-    // Se o campo não existir ou estiver vazio, colocamos um usuário padrão para não travar
     let email = "usuario@financas.com";
     if (emailField && emailField.value.trim() !== "") {
         email = emailField.value.trim();
     }
-    
     usuarioLogado = { email: email };
-    
-    // Salva na memória do navegador para persistência (Não deslogar no F5)
     localStorage.setItem('sessao_usuario', JSON.stringify(usuarioLogado));
     entrarNoPainel();
 }
@@ -60,7 +55,7 @@ function alternarCamposTipo() {
     const valorInput = document.getElementById('valorInput');
 
     if (tipo === 'parcelado') {
-        camposParcelas.style.display = 'grid';
+        camposParcelas.style.style.display = 'grid';
         campoValorNormal.style.display = 'none';
         if (valorInput) valorInput.removeAttribute('required');
     } else {
@@ -68,16 +63,18 @@ function alternarCamposTipo() {
         campoValorNormal.style.display = 'block';
         if (valorInput) valorInput.setAttribute('required', 'true');
     }
+    calcularTotalParcelas();
 }
 
 function calcularTotalParcelas() {
     const qtd = parseInt(document.getElementById('qtdParcelasInput').value) || 0;
     const valorParc = parseFloat(document.getElementById('valorParcelaInput').value) || 0;
     const total = qtd * valorParc;
-    document.getElementById('textoValorTotal').innerText = `R$ ${total.toFixed(2)}`;
+    const texto = document.getElementById('textoValorTotal');
+    if (texto) texto.innerText = `R$ ${total.toFixed(2)}`;
 }
 
-// SALVAR GASTO COM REQUISITOS VISUAIS
+// SALVAR GASTO COM CORREÇÃO DE FLUXO
 function salvarGasto(e) {
     if (e) e.preventDefault();
     
@@ -86,6 +83,11 @@ function salvarGasto(e) {
     const vencimentoOriginal = document.getElementById('vencimento').value;
     const ehFamiliar = document.getElementById('gastoFamiliarCheck').checked;
     const tipoConta = document.getElementById('tipoContaSelect').value;
+
+    if (!vencimentoOriginal) {
+        alert("Por favor, selecione uma data de vencimento.");
+        return;
+    }
 
     const dataBase = new Date(vencimentoOriginal + "T00:00:00");
     const idGrupo = Date.now().toString();
@@ -150,6 +152,8 @@ function salvarGasto(e) {
     }
 
     localStorage.setItem('cloud_gastos', JSON.stringify(gastos));
+    
+    // Limpeza do formulário mantendo integridade
     document.getElementById('gastoForm').reset();
     document.getElementById('vencimento').value = new Date().toISOString().split('T')[0];
     document.getElementById('tipoContaSelect').value = 'normal';
@@ -185,7 +189,6 @@ function criarNovoMes() {
     }
 }
 
-// EXPORTAR BACKUP JSON
 function exportarDados() {
     const backup = { gastos, salarios, mesesDisponiveis };
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup));
@@ -197,7 +200,6 @@ function exportarDados() {
     downloadAnchor.remove();
 }
 
-// IMPORTAR BACKUP JSON (SINCRONIZAÇÃO ENTRE PC E CELULAR)
 function importarDados(input) {
     const file = input.files[0];
     if (!file) return;
@@ -220,6 +222,7 @@ function importarDados(input) {
     reader.readAsText(file);
 }
 
+// INTERFACE, DASHBOARD E CÁLCULOS ATUALIZADOS
 function atualizarInterface() {
     const tabsContainer = document.getElementById('tabsMeses');
     if(!tabsContainer) return;
@@ -234,12 +237,16 @@ function atualizarInterface() {
     });
 
     const salKey = `${usuarioLogado?.email}_${mesSelecionado}`;
-    document.getElementById('salarioInput').value = salarios[salKey] || '';
-    document.getElementById('salarioInput').onchange = (e) => {
-        salarios[salKey] = parseFloat(e.target.value) || 0;
-        localStorage.setItem('cloud_salarios', JSON.stringify(salarios));
-        atualizarInterface();
-    };
+    
+    const salInput = document.getElementById('salarioInput');
+    if(salInput) {
+        salInput.value = salarios[salKey] || '';
+        salInput.onchange = (e) => {
+            salarios[salKey] = parseFloat(e.target.value) || 0;
+            localStorage.setItem('cloud_salarios', JSON.stringify(salarios));
+            atualizarInterface();
+        };
+    }
 
     const meuSalarioAtual = salarios[salKey] || 0;
     let totalFamiliarDoMes = 0; 
@@ -249,11 +256,16 @@ function atualizarInterface() {
     if(tbody) tbody.innerHTML = '';
 
     gastos.forEach(g => {
-        if(g.vencimento.startsWith(mesSelecionado)) {
+        if(g.vencimento && g.vencimento.startsWith(mesSelecionado)) {
             const visivel = (g.usuarioDono === usuarioLogado.email) || g.ehFamiliar;
             if(visivel) {
-                if(g.ehFamiliar) totalFamiliarDoMes += g.valor;
-                else if(!g.pago) meusGastosAPagar += g.valor;
+                if(g.ehFamiliar) {
+                    totalFamiliarDoMes += g.valor;
+                } else if(!g.pago) {
+                    meusGastosAPagar += g.valor;
+                }
+                
+                // Agrupa para o gráfico
                 resumoGrafico[g.categoria] = (resumoGrafico[g.categoria] || 0) + g.valor;
 
                 if (tbody) {
@@ -282,11 +294,15 @@ function atualizarInterface() {
         }
     });
 
-    document.getElementById('dashSalario').innerText = `R$ ${meuSalarioAtual.toFixed(2)}`;
+    // Atualiza os valores visuais no Dashboard
+    document.getElementById('dashSalario').value = meuSalarioAtual > 0 ? meuSalarioAtual : '';
     document.getElementById('dashFamiliar').innerText = `R$ ${totalFamiliarDoMes.toFixed(2)}`;
     document.getElementById('dashAPagar').innerText = `R$ ${meusGastosAPagar.toFixed(2)}`;
+    
+    // O saldo restante desconta as despesas individuais não pagas e as despesas conjuntas
     const saldoFinal = meuSalarioAtual - (meusGastosAPagar + totalFamiliarDoMes);
     document.getElementById('dashSaldo').innerText = `R$ ${saldoFinal.toFixed(2)}`;
+    
     renderizarGrafico(resumoGrafico);
 }
 
@@ -298,25 +314,48 @@ function renderizarGrafico(dados) {
     
     const keys = Object.keys(dados);
     const values = Object.values(dados);
-    if(keys.length === 0) { keys.push("Nenhum"); values.push(1); }
+    
+    if(keys.length === 0) { 
+        keys.push("Nenhum Gasto"); 
+        values.push(0); 
+    }
 
     meuGrafico = new Chart(ctx, {
         type: 'doughnut',
-        data: { labels: keys, datasets: [{ data: values, backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444'] }] },
-        options: { plugins: { legend: { labels: { color: '#f8fafc' } } } }
+        data: { 
+            labels: keys, 
+            datasets: [{ 
+                data: values, 
+                backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#ec4899'] 
+            }] 
+        },
+        options: { 
+            plugins: { 
+                legend: { labels: { color: '#f8fafc' } } 
+            } 
+        }
     });
 }
 
-// INICIALIZADOR SEGURO ANTI-TRAVA
+// INICIALIZADOR COMPLETO
 window.addEventListener('DOMContentLoaded', () => {
+    // Configura os ouvintes do formulário e inputs de parcelas
     const form = document.getElementById('gastoForm');
     if (form) {
         form.addEventListener('submit', salvarGasto);
     }
+    
+    const tipoSelect = document.getElementById('tipoContaSelect');
+    if(tipoSelect) tipoSelect.addEventListener('change', alternarCamposTipo);
+    
+    const qtdInput = document.getElementById('qtdParcelasInput');
+    const valorParcInput = document.getElementById('valorParcelaInput');
+    if(qtdInput) qtdInput.addEventListener('input', calcularTotalParcelas);
+    if(valorParcInput) valorParcInput.addEventListener('input', calcularTotalParcelas);
+
     const vencField = document.getElementById('vencimento');
     if(vencField) vencField.value = new Date().toISOString().split('T')[0];
 
-    // Se o usuário já logou antes, entra direto
     const sessaoSalva = localStorage.getItem('sessao_usuario');
     if (sessaoSalva) {
         usuarioLogado = JSON.parse(sessaoSalva);

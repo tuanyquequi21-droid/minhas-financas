@@ -76,7 +76,6 @@
             scroll-behavior: smooth; flex-grow: 1;
             padding-bottom: 5px;
         }
-        /* Esconde a barra de rolagem horrorosa no mobile */
         .months-carousel::-webkit-scrollbar { display: none; }
         .months-carousel { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -134,7 +133,6 @@
             tr { border: 1px solid var(--border); margin-bottom: 10px; border-radius: 8px; padding: 10px; background: var(--surface); }
             td { border: none; padding: 6px 0; display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; }
             td::before { content: attr(data-label); font-weight: bold; color: var(--text-muted); margin-right: 15px; }
-            td:style { text-align: right; }
         }
         .linha-paga { opacity: 0.4; text-decoration: line-through; }
     </style>
@@ -280,7 +278,6 @@
             document.getElementById('btnDeslogar')?.addEventListener('click', () => { if(typeof deslogar === 'function') deslogar(); });
             document.getElementById('btnNovoMes')?.addEventListener('click', () => { if(typeof criarNovoMes === 'function') criarNovoMes(); });
             
-            // Controle Tema Claro/Escuro
             document.getElementById('btnTema')?.addEventListener('click', () => {
                 const html = document.documentElement;
                 const atual = html.getAttribute('data-theme');
@@ -288,7 +285,6 @@
                 html.setAttribute('data-theme', novo);
                 localStorage.setItem('theme_preference', novo);
             });
-            // Restaura tema salvo
             const salvo = localStorage.getItem('theme_preference') || 'dark';
             document.documentElement.setAttribute('data-theme', salvo);
         });
@@ -297,6 +293,6 @@
             document.getElementById('tabsMeses').scrollLeft += valor;
         }
     </script>
-    <script src="./app.js?v=12"></script>
+    <script src="./app.js?v=13"></script>
 </body>
 </html>

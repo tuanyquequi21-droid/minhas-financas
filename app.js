@@ -6,6 +6,7 @@
 const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co"; 
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           
 // ======// =========================================================================
+// =========================================================================
 
 let bancoSupabase = null;
 try {
@@ -123,6 +124,7 @@ function atualizarInterface() {
     
     mesesDisponiveis.forEach(m => {
         const btn = document.createElement('button');
+        btn.type = 'button';
         btn.className = `month-pill ${m === mesSelecionado ? 'active' : ''}`;
         btn.innerText = m;
         btn.onclick = () => { mesSelecionado = m; atualizarInterface(); };

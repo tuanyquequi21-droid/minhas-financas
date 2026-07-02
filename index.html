@@ -3,13 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finanças Pro | Autenticado</title>
+    <title>Finanças Pro | Dashboard Premium</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <script>
-        !function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).supabase={})}(this,(function(e){"use strict";class t{constructor(e,t){this.supabaseUrl=e,this.supabaseKey=t}async signInWithPassword(e){if("admin@email.com"===e.email&&"123456"===e.password||e.email.includes("@"))return{data:{user:{email:e.email}},error:null};return{data:{user:null},error:{message:"Usuário ou senha inválidos no Supabase."}}}async getSession(){return{data:{session:null},error:null}}async signOut(){return{data:null,error:null}}}e.createClient=function(e,n){return{auth:new t(e,n)}},Object.defineProperty(e,"__esModule",{value:!0})});
-    </script>
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -20,13 +15,19 @@
             --background: #0f172a; --surface: #1e293b; --surface-hover: #334155; --text: #f8fafc; --text-muted: #94a3b8; --border: #334155; --glass: rgba(30, 41, 59, 0.7);
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { background-color: var(--background); color: var(--text); padding: 2rem; min-height: 100vh; }
-        .container { max-width: 1300px; margin: 0 auto; display: none; } 
+        body { background-color: var(--background); color: var(--text); padding: 2rem; min-height: 100vh; position: relative; }
         
-        .login-screen { display: flex; justify-content: center; align-items: center; min-height: 90vh; }
+        /* MODAL DE LOGIN ABSOLUTO: Fica por cima de tudo e impede interações */
+        .login-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: var(--background); display: flex; justify-content: center; 
+            align-items: center; z-index: 99999; padding: 1rem;
+        }
         .login-card { background: var(--surface); border: 1px solid var(--border); padding: 2.5rem; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
         .login-card h2 { margin-bottom: 1.5rem; background: linear-gradient(to right, #a5b4fc, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
+        /* Dashboard Principal */
+        .container { max-width: 1300px; margin: 0 auto; } 
         .glass-card { background: var(--glass); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
         .auth-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding: 1rem; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--border); }
         .user-badge { background: var(--surface); padding: 0.5rem 1rem; border-radius: 99px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--primary); }
@@ -56,25 +57,25 @@
 </head>
 <body>
 
-<div class="login-screen" id="telaLogin">
+<div class="login-overlay" id="telaLogin">
     <div class="login-card">
         <h2>Acessar Sistema</h2>
-        <div id="loginFormFalso">
+        <div>
             <label style="font-size: 0.85rem; color: var(--text-muted);">E-mail</label>
-            <input type="email" id="loginEmail" class="input-premium" required placeholder="seu@email.com">
+            <input type="email" id="loginEmail" class="input-premium" placeholder="seu@email.com">
             
             <label style="font-size: 0.85rem; color: var(--text-muted);">Senha</label>
-            <input type="password" id="loginSenha" class="input-premium" required placeholder="••••••••">
+            <input type="password" id="loginSenha" class="input-premium" placeholder="••••••••">
             
-            <button type="button" class="btn-premium" style="margin-top: 1rem;" onclick="dispararLoginManual()">Entrar</button>
+            <button type="button" class="btn-premium" style="margin-top: 1rem;" onclick="entrarSemF5()">Entrar</button>
         </div>
     </div>
 </div>
 
 <div class="container" id="appContainer">
     <div class="auth-bar">
-        <div id="userDisplayTag" class="user-badge">👤 Carregando usuário...</div>
-        <button class="btn-logout" onclick="deslogar()">Sair 🚪</button>
+        <div id="userDisplayTag" class="user-badge">👤 Usuário</div>
+        <button class="btn-logout" onclick="window.location.reload()">Sair 🚪</button>
     </div>
 
     <header>
@@ -106,8 +107,7 @@
 
             <div class="glass-card" style="margin-bottom: 2rem;">
                 <h2 id="formTitle" style="font-size: 1.2rem; margin-bottom:1rem;">Adicionar Transação</h2>
-                <form id="gastoForm">
-                    <input type="hidden" id="editId">
+                <form id="gastoForm" onsubmit="salvarGasto(event)">
                     <div class="form-grid">
                         <div style="display:flex; flex-direction:column;"><label>Descrição</label><input type="text" id="desc" class="input-premium" required></div>
                         <div style="display:flex; flex-direction:column;">
@@ -144,45 +144,29 @@
 </div>
 
 <script>
-    // =========================================================================
-    // ⚠️ ATENÇÃO: SUBSTITUA AS DUAS LINHAS ABAIXO COM SUAS CHAVES DO SUPABASE 
-    // =========================================================================
-    const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co"; // ««« EDITAR AQUI 
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           // ««« EDITAR AQUI 
-    // =========================================================================
-
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    let usuarioLogado = null;
+    // Configurações Globais Locais (Independente de travas de rede)
+    let usuarioLogado = "familia@email.com";
     let mesSelecionado = "2026-07";
     let mesesDisponiveis = ["2026-07", "2026-08", "2026-09"];
-    let gastos = [];
-    let salarios = {};
+    let gastos = JSON.parse(localStorage.getItem('cloud_gastos')) || [];
+    let salarios = JSON.parse(localStorage.getItem('cloud_salarios')) || {};
     let meuGrafico = null;
 
-    document.getElementById('loginForm'
+    // A MÁGICA ANULADORA DE F5: Remove a cortina visual sem interagir com elementos nativos
+    function entrarSemF5() {
+        const email Digitado = document.getElementById('loginEmail').value.trim();
+        
+        if(!emailDigitado) {
+            alert("Por favor, informe seu e-mail de acesso para identificação do painel.");
+            return;
+        }
 
-    function entrarNoSistema() {
-        document.getElementById('telaLogin').style.display = 'none';
-        document.getElementById('appContainer').style.display = 'block';
-        document.getElementById('userDisplayTag').innerText = `👤 Logado como: ${usuarioLogado.email}`;
-        carregarDadosDaNuvem();
-    }
-
-    async function verificarSessao() {
-        // Inicialização limpa de formulário local
-        document.getElementById('telaLogin').style.display = 'flex';
-        document.getElementById('appContainer').style.display = 'none';
-    }
-
-    async function deslogar() {
-        usuarioLogado = null;
-        verificarSessao();
-    }
-
-    async function carregarDadosDaNuvem() {
-        gastos = JSON.parse(localStorage.getItem('cloud_gastos')) || [];
-        salarios = JSON.parse(localStorage.getItem('cloud_salarios')) || {};
+        usuarioLogado = emailDigitado;
+        
+        // Simplesmente esconde a cortina preta e revela os dados carregados
+        document.getElementById('telaLogin').style.style.setProperty('display', 'none', 'important');
+        document.getElementById('userDisplayTag').innerText = `👤 Logado como: ${usuarioLogado}`;
+        
         atualizarInterface();
     }
 
@@ -196,7 +180,7 @@
 
         gastos.push({
             id: Date.now().toString(),
-            usuarioDono: usuarioLogado.email,
+            usuarioDono: usuarioLogado,
             desc, categoria, valor, vencimento, ehFamiliar, pago: false
         });
 
@@ -224,7 +208,9 @@
 
     function atualizarInterface() {
         const tabsContainer = document.getElementById('tabsMeses');
+        if(!tabsContainer) return;
         tabsContainer.innerHTML = '';
+        
         mesesDisponiveis.forEach(m => {
             const btn = document.createElement('button');
             btn.className = `tab-btn ${m === mesSelecionado ? 'active' : ''}`;
@@ -232,7 +218,7 @@
             tabsContainer.appendChild(btn);
         });
 
-        const salKey = `${usuarioLogado?.email}_${mesSelecionado}`;
+        const salKey = `${usuarioLogado}_${mesSelecionado}`;
         document.getElementById('salarioInput').value = salarios[salKey] || '';
         document.getElementById('salarioInput').onchange = (e) => {
             salarios[salKey] = parseFloat(e.target.value) || 0;
@@ -246,7 +232,7 @@
 
         gastos.forEach(g => {
             if(g.vencimento.startsWith(mesSelecionado)) {
-                const visivel = (g.usuarioDono === usuarioLogado.email) || g.ehFamiliar;
+                const visivel = (g.usuarioDono === usuarioLogado) || g.ehFamiliar;
                 if(visivel) {
                     if(g.ehFamiliar) totalFamiliarDoMes += g.valor;
                     else if(!g.pago) meusGastosAPagar += g.valor;
@@ -290,8 +276,10 @@
         });
     }
 
-    document.getElementById('gastoForm').addEventListener('submit', salvarGasto);
-    window.addEventListener('DOMContentLoaded', verificarSessao);
+    // Inicialização direta e blindada contra reloads
+    window.onload = function() {
+        document.getElementById('vencimento').value = new Date().toISOString().split('T')[0];
+    };
 </script>
 </body>
 </html>

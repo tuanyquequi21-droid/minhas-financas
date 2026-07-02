@@ -6,7 +6,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // =========================================================================
 
 // Criação do cliente oficial do Supabase utilizando a CDN estável externa
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const bancoSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioLogado = null;
 let mesSelecionado = "2026-07";

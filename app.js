@@ -16,16 +16,17 @@ let gastos = [];
 let salarios = {};
 let meuGrafico = null;
 
-// LOGIN LOCAL ROBUSTO (Evita bloqueios de servidores externos)
+// LOGIN LOCAL CORRIGIDO E BLINDADO
 function executarLogin() {
     const emailField = document.getElementById('loginEmail');
-    if (!emailField || !emailField.value) {
-        alert("Por favor, digite seu e-mail para acessar.");
-        return;
+    
+    // Se o campo não existir ou estiver vazio, colocamos um usuário padrão para não travar
+    let email = "usuario@financas.com";
+    if (emailField && emailField.value.trim() !== "") {
+        email = emailField.value.trim();
     }
     
-    // Define o usuário logado com o e-mail digitado
-    usuarioLogado = { email: emailField.value.trim() };
+    usuarioLogado = { email: email };
     
     // Salva na memória do navegador para persistência (Não deslogar no F5)
     localStorage.setItem('sessao_usuario', JSON.stringify(usuarioLogado));
@@ -61,11 +62,11 @@ function alternarCamposTipo() {
     if (tipo === 'parcelado') {
         camposParcelas.style.display = 'grid';
         campoValorNormal.style.display = 'none';
-        valorInput.removeAttribute('required');
+        if (valorInput) valorInput.removeAttribute('required');
     } else {
         camposParcelas.style.display = 'none';
         campoValorNormal.style.display = 'block';
-        valorInput.setAttribute('required', 'true');
+        if (valorInput) valorInput.setAttribute('required', 'true');
     }
 }
 
@@ -245,7 +246,7 @@ function atualizarInterface() {
     let meusGastosAPagar = 0; 
     let resumoGrafico = {};
     const tbody = document.getElementById('tabelaCorpo'); 
-    tbody.innerHTML = '';
+    if(tbody) tbody.innerHTML = '';
 
     gastos.forEach(g => {
         if(g.vencimento.startsWith(mesSelecionado)) {
@@ -255,26 +256,28 @@ function atualizarInterface() {
                 else if(!g.pago) meusGastosAPagar += g.valor;
                 resumoGrafico[g.categoria] = (resumoGrafico[g.categoria] || 0) + g.valor;
 
-                const tr = document.createElement('tr');
-                if(g.pago) tr.className = "linha-paga";
-                
-                let etiquetaTipo = '👤 Individual';
-                if(g.ehFamiliar) etiquetaTipo = '💜 Conjunta';
-                if(g.tipo === 'parcelado') etiquetaTipo += ' 📦';
-                
-                tr.innerHTML = `
-                    <td><strong>${g.desc}</strong></td>
-                    <td>${g.categoria}</td>
-                    <td><small>${g.usuarioDono ? g.usuarioDono.split('@')[0] : 'user'}</small></td>
-                    <td>${g.vencimento}</td>
-                    <td>R$ ${g.valor.toFixed(2)}</td>
-                    <td>${etiquetaTipo}</td>
-                    <td>
-                        <button class="tab-btn" style="padding:4px 8px; font-size:0.8rem; background:var(--success); color:white;" onclick="alternarStatusPago('${g.id}')">Pago</button>
-                        <button class="tab-btn" style="padding:4px 8px; font-size:0.8rem; background:var(--danger); color:white;" onclick="deletarGasto('${g.id}', '${g.idGrupo}', '${g.tipo}')">X</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+                if (tbody) {
+                    const tr = document.createElement('tr');
+                    if(g.pago) tr.className = "linha-paga";
+                    
+                    let etiquetaTipo = '👤 Individual';
+                    if(g.ehFamiliar) etiquetaTipo = '💜 Conjunta';
+                    if(g.tipo === 'parcelado') etiquetaTipo += ' 📦';
+                    
+                    tr.innerHTML = `
+                        <td><strong>${g.desc}</strong></td>
+                        <td>${g.categoria}</td>
+                        <td><small>${g.usuarioDono ? g.usuarioDono.split('@')[0] : 'user'}</small></td>
+                        <td>${g.vencimento}</td>
+                        <td>R$ ${g.valor.toFixed(2)}</td>
+                        <td>${etiquetaTipo}</td>
+                        <td>
+                            <button class="tab-btn" style="padding:4px 8px; font-size:0.8rem; background:var(--success); color:white;" onclick="alternarStatusPago('${g.id}')">Pago</button>
+                            <button class="tab-btn" style="padding:4px 8px; font-size:0.8rem; background:var(--danger); color:white;" onclick="deletarGasto('${g.id}', '${g.idGrupo}', '${g.tipo}')">X</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                }
             }
         }
     });
@@ -288,7 +291,9 @@ function atualizarInterface() {
 }
 
 function renderizarGrafico(dados) {
-    const ctx = document.getElementById('graficoCategorias').getContext('2d');
+    const canvas = document.getElementById('graficoCategorias');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     if (meuGrafico) meuGrafico.destroy();
     
     const keys = Object.keys(dados);
@@ -302,16 +307,16 @@ function renderizarGrafico(dados) {
     });
 }
 
-// CHECA SESSÃO ANTERIOR IMEDIATAMENTE (Segurança anti-deslogar)
+// INICIALIZADOR SEGURO ANTI-TRAVA
 window.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('gastoForm');
     if (form) {
-        form.removeAttribute('onsubmit');
         form.addEventListener('submit', salvarGasto);
     }
     const vencField = document.getElementById('vencimento');
     if(vencField) vencField.value = new Date().toISOString().split('T')[0];
 
+    // Se o usuário já logou antes, entra direto
     const sessaoSalva = localStorage.getItem('sessao_usuario');
     if (sessaoSalva) {
         usuarioLogado = JSON.parse(sessaoSalva);

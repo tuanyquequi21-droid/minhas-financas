@@ -90,8 +90,9 @@
         .month-pill.active { background: var(--success); color: #0f172a; }
 
         /* 📊 UNIDADES DE CONTEÚDO (ABAS VIRTUAIS) */
-        .tab-content { display: none; padding: 10px; max-width: 800px; margin: 0 auto; box-sizing: border-box; }
-        .tab-content.active { display: block; }
+        /* Forçando o display com !important para que scripts antigos não quebrem o layout */
+        .tab-content { display: none !important; padding: 10px; max-width: 800px; margin: 0 auto; box-sizing: border-box; }
+        .tab-content.active { display: block !important; }
 
         /* ⚡ DASHBOARD EM GRADE DE RELEVO 2X2 (MUITO PEQUENO) */
         .grid-dash { 
@@ -346,6 +347,6 @@
             document.documentElement.setAttribute('data-theme', salvo);
         });
     </script>
-    <script src="./app.js?v=200"></script>
+    <script src="./app.js?v=300"></script>
 </body>
 </html>

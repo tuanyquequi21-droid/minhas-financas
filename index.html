@@ -166,7 +166,7 @@
 <body>
 
     <div id="telaLogin" class="login-wrapper">
-        <div class="login-card">
+        <form class="login-card" onsubmit="event.preventDefault(); if(typeof executarLogin === 'function') executarLogin();">
             <h4 style="margin: 0 0 12px 0; text-align: center; color: var(--text-main);">Acessar Carteira</h4>
             <div class="input-group">
                 <label>E-mail:</label>
@@ -176,8 +176,8 @@
                 <label>Senha:</label>
                 <input type="password" id="loginSenha" placeholder="••••••••" required>
             </div>
-            <button type="button" id="btnLogar" style="width:100%; background:var(--primary); color:white; border:none; padding:8px; border-radius:4px; font-size:0.82rem; height:32px; cursor:pointer; font-weight:bold;">Entrar</button>
-        </div>
+            <button type="submit" id="btnLogar" style="width:100%; background:var(--primary); color:white; border:none; padding:8px; border-radius:4px; font-size:0.82rem; height:32px; cursor:pointer; font-weight:bold;">Entrar</button>
+        </form>
     </div>
 
     <div id="appContainer" style="display: none;">

@@ -3,38 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minha Carteira | Finanças</title>
+    <title>Dashboard Financeiro | Premium</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* Variáveis de Cores para Troca de Tema */
+        /* Cores Globais e Temas Modernos */
         [data-theme="light"] {
-            --bg: #f8fafc;
+            --bg: #f1f5f9;
             --surface: #ffffff;
             --text-main: #0f172a;
             --text-muted: #64748b;
             --border: #e2e8f0;
-            --card-familiar-bg: #faf5ff;
-            --card-apagar-bg: #fef2f2;
-            --card-saldo-bg: #ecfdf5;
-            --pill-inactive: #e2e8f0;
-            --pill-text-inactive: #475569;
-            --nav-bg: #ffffff;
+            --card-familiar: #faf5ff;
+            --card-apagar: #fef2f2;
+            --card-saldo: #ecfdf5;
+            --tab-active-bg: #e2e8f0;
         }
         [data-theme="dark"] {
-            --bg: #0f172a;
-            --surface: #1e293b;
+            --bg: #0b1329;
+            --surface: #1c2541;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
-            --border: #334155;
-            --card-familiar-bg: #2e1065;
-            --card-apagar-bg: #451a03;
-            --card-saldo-bg: #064e3b;
-            --pill-inactive: #334155;
-            --pill-text-inactive: #94a3b8;
-            --nav-bg: #1e293b;
+            --border: #3a506b;
+            --card-familiar: #2e1065;
+            --card-apagar: #451a03;
+            --card-saldo: #064e3b;
+            --tab-active-bg: #3a506b;
         }
-
         :root {
             --primary: #3b82f6;
             --success: #10b981;
@@ -44,293 +39,242 @@
 
         body { 
             font-family: system-ui, -apple-system, sans-serif; 
-            background: var(--bg); 
-            color: var(--text-main); 
-            margin: 0; padding: 0 0 60px 0; /* Espaço para a barra inferior */
+            background: var(--bg); color: var(--text-main); 
+            margin: 0; padding: 0; font-size: 0.85rem;
             transition: background 0.3s, color 0.3s;
-            font-size: 0.82rem;
         }
 
-        /* 🔐 TELA DE LOGIN MINIMALISTA */
-        .login-wrapper {
-            display: flex; justify-content: center; align-items: center;
-            min-height: 100vh; padding: 10px; box-sizing: border-box;
-        }
-        .login-card { 
-            width: 100%; max-width: 320px; background: var(--surface); 
-            padding: 20px; border-radius: 12px; border: 1px solid var(--border);
-        }
+        /* 🔐 LOGIN */
+        .login-wrapper { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .login-card { width: 100%; max-width: 340px; background: var(--surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 
-        /* HEADER SUPER SLIM */
-        .app-header {
-            background: var(--surface); padding: 8px 12px;
-            border-bottom: 1px solid var(--border);
-            display: flex; justify-content: space-between; align-items: center;
-        }
+        /* 🏢 HEADER & ABAS SUPERIORES NAV */
+        .app-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 16px; display: flex; justify-content: space-between; align-items: center; height: 56px; }
+        .nav-tabs-top { display: flex; gap: 4px; height: 100%; align-items: flex-end; }
+        .tab-btn-top { background: transparent; border: none; border-bottom: 3px solid transparent; color: var(--text-muted); padding: 12px 16px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: 0.2s; height: calc(100% - 3px); }
+        .tab-btn-top.active { color: var(--primary); border-bottom-color: var(--primary); background: rgba(59, 130, 246, 0.05); }
 
-        /* 📅 CARROSSEL DE MESES */
-        .months-carousel-container {
-            display: flex; align-items: center; gap: 6px;
-            background: var(--surface); padding: 6px 12px;
-            border-bottom: 1px solid var(--border);
-        }
-        .months-carousel {
-            display: flex; gap: 4px; overflow-x: auto;
-            scroll-behavior: smooth; flex-grow: 1;
-            padding-bottom: 2px;
-        }
+        /* CARROSSEL MÊS */
+        .months-bar { display: flex; align-items: center; gap: 8px; background: var(--surface); padding: 8px 16px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+        .months-carousel { display: flex; gap: 6px; overflow-x: auto; scroll-behavior: smooth; }
         .months-carousel::-webkit-scrollbar { display: none; }
-        .months-carousel { -ms-overflow-style: none; scrollbar-width: none; }
+        .month-pill { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg); color: var(--text-muted); font-weight: 600; font-size: 0.75rem; white-space: nowrap; cursor: pointer; }
+        .month-pill.active { background: var(--success); color: #000; border-color: var(--success); }
 
-        .month-pill {
-            padding: 4px 10px; border-radius: 12px; border: none;
-            background: var(--pill-inactive); color: var(--pill-text-inactive);
-            font-weight: 600; font-size: 0.75rem; white-space: nowrap; cursor: pointer;
-        }
-        .month-pill.active { background: var(--success); color: #0f172a; }
-
-        /* 📊 UNIDADES DE CONTEÚDO (ABAS VIRTUAIS) */
-        /* Forçando o display com !important para que scripts antigos não quebrem o layout */
-        .tab-content { display: none !important; padding: 10px; max-width: 800px; margin: 0 auto; box-sizing: border-box; }
+        /* CONTAINER CONTEÚDO */
+        .main-container { max-width: 1000px; margin: 16px auto; padding: 0 16px; box-sizing: border-box; }
+        .tab-content { display: none !important; }
         .tab-content.active { display: block !important; }
 
-        /* ⚡ DASHBOARD EM GRADE DE RELEVO 2X2 (MUITO PEQUENO) */
-        .grid-dash { 
-            display: grid; 
-            grid-template-columns: repeat(2, 1fr); 
-            gap: 6px; 
-            margin-bottom: 10px; 
-        }
-        .card-dash { 
-            background: var(--surface); 
-            padding: 8px; 
-            border-radius: 6px; 
-            border: 1px solid var(--border); 
-        }
-        .card-dash h3 { margin: 0 0 2px 0; font-size: 0.65rem; text-transform: uppercase; color: var(--text-muted); }
-        .card-dash p { margin: 0; font-size: 1rem; font-weight: 700; }
-        
-        .card-salario { border-left: 3px solid var(--success); }
-        .card-salario input {
-            width: 100%; font-size: 1rem; font-weight: 700; color: var(--text-main);
-            background: transparent; border: none; outline: none;
-        }
-        .card-familiar { border-left: 3px solid var(--purple); background: var(--card-familiar-bg); }
-        .card-familiar p { color: var(--purple); }
-        .card-apagar { border-left: 3px solid var(--danger); background: var(--card-apagar-bg); }
-        .card-apagar p { color: var(--danger); }
-        .card-saldo { border-left: 3px solid var(--success); background: var(--card-saldo-bg); }
-        .card-saldo p { color: var(--success); }
+        /* ⚡ GRIDA DE CARDS */
+        .grid-dash { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
+        @media(min-width: 600px) { .grid-dash { grid-template-columns: repeat(4, 1fr); } }
+        .card-dash { background: var(--surface); padding: 12px; border-radius: 8px; border: 1px solid var(--border); border-left: 4px solid var(--border); }
+        .card-dash h3 { margin: 0 0 4px 0; font-size: 0.65rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+        .card-dash p, .card-dash input { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-main); background: transparent; border: none; width: 100%; outline: none; }
 
-        /* FORMULÁRIOS E INPUTS */
-        .input-group { margin-bottom: 8px; display: flex; flex-direction: column; }
-        .input-group label { margin-bottom: 2px; font-weight: 600; font-size: 0.75rem; }
-        input, select {
-            padding: 6px 8px; border-radius: 4px; border: 1px solid var(--border);
-            background: var(--bg); color: var(--text-main); font-size: 0.82rem; box-sizing: border-box;
-            height: 32px;
-        }
+        /* 🔍 LUPA E BARRA DE BUSCA */
+        .search-container { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; margin-bottom: 12px; align-items: center; gap: 8px; }
+        .search-container input { background: transparent; border: none; color: var(--text-main); width: 100%; outline: none; font-size: 0.85rem; }
 
-        /* TABELA SLIM / CARDS MOBILE */
-        .table-wrapper { background: var(--surface); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+        /* INPUTS DO FORMULÁRIO */
+        .form-box { background: var(--surface); border: 1px solid var(--border); padding: 20px; border-radius: 12px; max-width: 450px; margin: 0 auto; }
+        .input-group { margin-bottom: 12px; display: flex; flex-direction: column; }
+        .input-group label { margin-bottom: 4px; font-weight: 600; font-size: 0.75rem; color: var(--text-muted); }
+        input, select { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text-main); font-size: 0.85rem; height: 38px; box-sizing: border-box; }
+
+        /* TABELA */
+        .table-wrapper { background: var(--surface); border-radius: 8px; border: 1px solid var(--border); overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
-        th { background: var(--border); color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; }
-
-        @media (max-width: 760px) {
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: rgba(0,0,0,0.05); color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; }
+        @media (max-width: 600px) {
             table, thead, tbody, th, td, tr { display: block; }
-            thead tr { position: absolute; top: -9999px; left: -9999px; }
-            tr { border: 1px solid var(--border); margin-bottom: 6px; border-radius: 6px; padding: 6px; background: var(--surface); }
-            td { border: none; padding: 3px 0; display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; }
-            td::before { content: attr(data-label); font-weight: bold; color: var(--text-muted); margin-right: 8px; }
+            thead { display: none; }
+            tr { border: 1px solid var(--border); margin-bottom: 8px; border-radius: 8px; padding: 8px; background: var(--surface); }
+            td { display: flex; justify-content: space-between; padding: 4px 0; border: none; }
+            td::before { content: attr(data-label); font-weight: bold; color: var(--text-muted); }
         }
-        .linha-paga { opacity: 0.2; text-decoration: line-through; }
-
-        /* 📱 BARRA DE NAVEGAÇÃO INFERIOR FIXED (ESTILO BANCO) */
-        .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            height: 52px; background: var(--nav-bg);
-            border-top: 1px solid var(--border);
-            display: flex; justify-content: space-around; align-items: center;
-            z-index: 999;
-        }
-        .nav-item {
-            background: transparent; border: none; color: var(--text-muted);
-            display: flex; flex-direction: column; align-items: center;
-            font-size: 0.7rem; font-weight: bold; cursor: pointer; width: 33%; height: 100%; justify-content: center;
-        }
-        .nav-item.active { color: var(--primary); }
-        .nav-item span { font-size: 1.1rem; margin-bottom: 1px; }
     </style>
 </head>
 <body>
 
     <div id="telaLogin" class="login-wrapper">
         <form class="login-card" onsubmit="event.preventDefault(); if(typeof executarLogin === 'function') executarLogin();">
-            <h4 style="margin: 0 0 12px 0; text-align: center; color: var(--text-main);">Acessar Carteira</h4>
+            <h3 style="margin: 0 0 16px 0; text-align: center;">Acessar Sistema</h3>
             <div class="input-group">
-                <label>E-mail:</label>
+                <label>E-mail</label>
                 <input type="email" id="loginEmail" placeholder="seu@email.com" required>
             </div>
             <div class="input-group">
-                <label>Senha:</label>
+                <label>Senha</label>
                 <input type="password" id="loginSenha" placeholder="••••••••" required>
             </div>
-            <button type="submit" id="btnLogar" style="width:100%; background:var(--primary); color:white; border:none; padding:8px; border-radius:4px; font-size:0.82rem; height:32px; cursor:pointer; font-weight:bold;">Entrar</button>
+            <button type="submit" style="width:100%; background:var(--primary); color:white; border:none; height:38px; border-radius:6px; font-weight:bold; cursor:pointer;">Entrar</button>
         </form>
     </div>
 
     <div id="appContainer" style="display: none;">
         <header class="app-header">
-            <span id="userDisplayTag" style="font-size: 0.8rem; font-weight: 600;">👤 Carregando...</span>
-            <div style="display: flex; gap: 6px;">
-                <button type="button" id="btnTema" style="background:transparent; border:1px solid var(--border); color:var(--text-main); padding:4px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:bold;">🌓 Tema</button>
-                <button type="button" id="btnDeslogar" style="background:var(--danger); color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:bold;">Sair</button>
+            <div class="nav-tabs-top">
+                <button class="tab-btn-top active" onclick="mudarAba('Resumo', this)">📊 Resumo</button>
+                <button class="tab-btn-top" onclick="mudarAba('Novo', this)">➕ Novo Registro</button>
+                <button class="tab-btn-top" onclick="mudarAba('Grafico', this)">📈 Gráficos</button>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button type="button" id="btnTema" style="background:transparent; border:1px solid var(--border); color:var(--text-main); padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.75rem;">🌓 Tema</button>
+                <button type="button" id="btnDeslogar" style="background:var(--danger); color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.75rem; font-weight:bold;">Sair</button>
             </div>
         </header>
 
-        <div class="months-carousel-container">
-            <button type="button" onclick="scrollCarrossel(-60)" style="background:transparent; border:none; color:var(--text-main); font-size:0.85rem; cursor:pointer;">◀</button>
+        <div class="months-bar">
+            <button type="button" onclick="document.getElementById('tabsMeses').scrollLeft -= 60" style="background:transparent; border:none; color:var(--text-main); cursor:pointer;">◀</button>
             <div class="months-carousel" id="tabsMeses"></div>
-            <button type="button" onclick="scrollCarrossel(60)" style="background:transparent; border:none; color:var(--text-main); font-size:0.85rem; cursor:pointer;">▶</button>
-            <button type="button" id="btnNovoMes" style="background:var(--text-main); color:var(--bg); border:none; padding:4px 8px; border-radius:12px; font-size:0.7rem; white-space:nowrap; cursor:pointer; font-weight:bold;">+ Mês</button>
+            <button type="button" onclick="document.getElementById('tabsMeses').scrollLeft += 60" style="background:transparent; border:none; color:var(--text-main); cursor:pointer;">▶</button>
+            <button type="button" id="btnNovoMes" style="background:var(--text-main); color:var(--bg); border:none; padding:4px 10px; border-radius:12px; font-size:0.7rem; font-weight:bold; cursor:pointer;">+ Mês</button>
         </div>
 
-        <div id="abaResumo" class="tab-content active">
-            <div class="grid-dash">
-                <div class="card-dash card-salario">
-                    <h3>Minha Renda</h3>
-                    <input type="number" id="salarioInput" placeholder="R$ 0,00">
+        <main class="main-container">
+            
+            <div id="abaResumo" class="tab-content active">
+                <div class="grid-dash">
+                    <div class="card-dash" style="border-left-color: var(--success);">
+                        <h3>Minha Renda</h3>
+                        <input type="number" id="salarioInput" placeholder="R$ 0,00">
+                    </div>
+                    <div class="card-dash" style="border-left-color: var(--purple); background: var(--card-familiar);">
+                        <h3>Conjuntas</h3>
+                        <p id="dashFamiliar" style="color: var(--purple);">R$ 0,00</p>
+                    </div>
+                    <div class="card-dash" style="border-left-color: var(--danger); background: var(--card-apagar);">
+                        <h3>A Pagar</h3>
+                        <p id="dashAPagar" style="color: var(--danger);">R$ 0,00</p>
+                    </div>
+                    <div class="card-dash" style="border-left-color: var(--success); background: var(--card-saldo);">
+                        <h3>Saldo</h3>
+                        <p id="dashSaldo" style="color: var(--success);">R$ 0,00</p>
+                    </div>
                 </div>
-                <div class="card-dash card-familiar">
-                    <h3>Conjuntas</h3>
-                    <p id="dashFamiliar">R$ 0,00</p>
+
+                <div class="search-container">
+                    <span>🔍</span>
+                    <input type="text" id="campoPesquisa" placeholder="Pesquisar nos registros cadastrados (ex: Internet, mercado...)" oninput="filtrarTabela()">
                 </div>
-                <div class="card-dash card-apagar">
-                    <h3>A Pagar</h3>
-                    <p id="dashAPagar">R$ 0,00</p>
-                </div>
-                <div class="card-dash card-saldo">
-                    <h3>Saldo</h3>
-                    <p id="dashSaldo">R$ 0,00</p>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Descrição</th>
+                                <th>Categoria</th>
+                                <th>Vencimento</th>
+                                <th>Valor</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaCorpo"></tbody>
+                    </table>
                 </div>
             </div>
 
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Descrição</th>
-                            <th>Categoria</th>
-                            <th>Vencimento</th>
-                            <th>Valor</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabelaCorpo"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div id="abaNovo" class="tab-content">
-            <div style="background: var(--surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
-                <h3 style="margin-top:0; font-size:0.9rem; margin-bottom:10px;">Novo Lançamento</h3>
-                <form id="gastoForm">
-                    <div class="input-group">
-                        <label>Descrição</label>
-                        <input type="text" id="desc" placeholder="Ex: Internet, Aluguel" required>
-                    </div>
-                    <div class="input-group">
-                        <label>Categoria</label>
-                        <select id="categoria">
-                            <option value="Moradia">Moradia</option>
-                            <option value="Alimentação">Alimentação</option>
-                            <option value="Transporte">Transporte</option>
-                            <option value="Lazer">Lazer</option>
-                            <option value="Saúde">Saúde</option>
-                            <option value="Outros">Outros</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Vencimento</label>
-                        <input type="date" id="vencimento" required>
-                    </div>
-                    <div class="input-group">
-                        <label>Tipo de Registro</label>
-                        <select id="tipoContaSelect">
-                            <option value="normal">À Vista / Único</option>
-                            <option value="parcelado">Parcelado</option>
-                            <option value="recorrente">Fixo Mensal (Recorrente)</option>
-                        </select>
-                    </div>
-
-                    <div id="camposParcelas" style="display:none; gap:6px; background:var(--bg); padding:6px; border-radius:4px; margin-bottom:8px;">
-                        <div class="input-group" style="margin:0; width:50%;">
-                            <label>Parcelas</label>
-                            <input type="number" id="qtdParcelasInput" value="2" min="2">
+            <div id="abaNovo" class="tab-content">
+                <div class="form-box">
+                    <h3 style="margin-top:0; margin-bottom:16px; font-size:1rem;">Cadastrar Lançamento</h3>
+                    <form id="gastoForm" onsubmit="if(typeof salvarRegistroSimulado === 'function') { event.preventDefault(); salvarRegistroSimulado(); }">
+                        <div class="input-group">
+                            <label>Descrição</label>
+                            <input type="text" id="desc" placeholder="Ex: Conta de Luz" required>
                         </div>
-                        <div class="input-group" style="margin:0; width:50%;">
-                            <label>Valor Parcela</label>
-                            <input type="number" id="valorParcelaInput" placeholder="0.00" step="0.01">
+                        <div class="input-group">
+                            <label>Categoria</label>
+                            <select id="categoria">
+                                <option value="Moradia">Moradia</option>
+                                <option value="Alimentação">Alimentação</option>
+                                <option value="Transporte">Transporte</option>
+                                <option value="Lazer">Lazer</option>
+                                <option value="Saúde">Saúde</option>
+                                <option value="Outros">Outros</option>
+                            </select>
                         </div>
-                    </div>
-
-                    <div class="input-group" id="campoValorNormal">
-                        <label>Valor</label>
-                        <input type="number" id="valorInput" placeholder="0.00" step="0.01" required>
-                    </div>
-
-                    <div style="margin: 10px 0; display:flex; align-items:center; gap:6px;">
-                        <input type="checkbox" id="gastoFamiliarCheck" style="width:14px; height:14px;">
-                        <label for="gastoFamiliarCheck" style="color:var(--purple); font-weight:bold; font-size:0.75rem;">💜 Conta Conjunta / Familiar</label>
-                    </div>
-
-                    <button type="submit" style="width:100%; background:var(--success); color:#0f172a; border:none; padding:8px; border-radius:4px; font-size:0.85rem; height:34px; cursor:pointer; font-weight:bold;">Salvar Registro</button>
-                </form>
+                        <div class="input-group">
+                            <label>Vencimento</label>
+                            <input type="date" id="vencimento" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Tipo</label>
+                            <select id="tipoContaSelect">
+                                <option value="normal">À Vista / Único</option>
+                                <option value="parcelado">Parcelado</option>
+                                <option value="recorrente">Fixo Mensal</option>
+                            </select>
+                        </div>
+                        <div id="camposParcelas" style="display:none; gap:8px; margin-bottom:12px;">
+                            <div class="input-group" style="width:50%;">
+                                <label>Qtd Parcelas</label>
+                                <input type="number" id="qtdParcelasInput" value="2" min="2">
+                            </div>
+                            <div class="input-group" style="width:50%;">
+                                <label>Valor da Parcela</label>
+                                <input type="number" id="valorParcelaInput" placeholder="0.00" step="0.01">
+                            </div>
+                        </div>
+                        <div class="input-group" id="campoValorNormal">
+                            <label>Valor</label>
+                            <input type="number" id="valorInput" placeholder="0.00" step="0.01">
+                        </div>
+                        <div style="margin: 14px 0; display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" id="gastoFamiliarCheck" style="width:16px; height:16px;">
+                            <label for="gastoFamiliarCheck" style="color:var(--purple); font-weight:bold; cursor:pointer;">💜 Conta Conjunta / Familiar</label>
+                        </div>
+                        <button type="submit" id="btnSalvarGasto" style="width:100%; background:var(--success); color:#000; border:none; height:38px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.9rem;">Salvar Registro</button>
+                    </form>
+                </div>
             </div>
-        </div>
 
-        <div id="abaGrafico" class="tab-content" style="text-align: center;">
-            <div style="background: var(--surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border); display:inline-block; width:100%; max-width:320px; box-sizing:border-box;">
-                <h3 style="margin-top:0; font-size:0.9rem; margin-bottom:12px;">Divisão por Categoria</h3>
-                <div style="width:100%; max-width:180px; margin: 0 auto;">
+            <div id="abaGrafico" class="tab-content" style="text-align: center;">
+                <div style="background: var(--surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border); display:inline-block; width:100%; max-width:360px; box-sizing:border-box;">
+                    <h3 style="margin-top:0; margin-bottom:16px;">Gastos por Categoria</h3>
                     <canvas id="graficoCategorias"></canvas>
                 </div>
             </div>
-        </div>
 
-        <nav class="bottom-nav">
-            <button class="nav-item active" id="btnNavResumo" onclick="mudarAba('Resumo', this)">
-                <span>📊</span>Resumo
-            </button>
-            <button class="nav-item" id="btnNavNovo" onclick="mudarAba('Novo', this)">
-                <span>➕</span>Novo
-            </button>
-            <button class="nav-item" id="btnNavGrafico" onclick="mudarAba('Grafico', this)">
-                <span>📈</span>Gráfico
-            </button>
-        </nav>
+        </main>
     </div>
 
     <script>
-        // Função do Carrossel de Meses
-        function scrollCarrossel(valor) {
-            document.getElementById('tabsMeses').scrollLeft += valor;
-        }
-
-        // Lógica de Troca de Abas no Telemóvel
-        function mudarAba(nomeAba, elementoBotao) {
-            // Esconde todas as abas
-            document.querySelectorAll('.tab-content').forEach(aba => aba.classList.remove('active'));
-            // Desativa todos os botões do menu
-            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+        // Função Dinâmica para Troca de Abas Superiores
+        function mudarAba(nomeAba, botaoClicado) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn-top').forEach(el => el.classList.remove('active'));
             
-            // Ativa a aba e o botão selecionados
             document.getElementById('aba' + nomeAba).classList.add('active');
-            elementoBotao.classList.add('active');
+            botaoClicado.classList.add('active');
         }
 
-        // Conectores Automáticos para os Eventos Globais
+        // Função de Pesquisa Dinâmica (Filtro instantâneo na tabela)
+        function filtrarTabela() {
+            const termo = document.getElementById('campoPesquisa').value.toLowerCase();
+            const linhas = document.querySelectorAll('#tabelaCorpo tr');
+            
+            linhas.forEach(linha => {
+                const textoLinha = linha.innerText.toLowerCase();
+                if(textoLinha.includes(termo)) {
+                    linha.style.display = "";
+                } else {
+                    linha.style.display = "none";
+                }
+            });
+        }
+
+        // Função Ponte de Proteção para o Envio do app.js
+        function salvarRegistroSimulado() {
+            const formOriginal = document.getElementById('gastoForm');
+            // Dispara o evento original que o seu app.js precisa capturar
+            const eventoSubmit = new Event('submit', { bubbles: true, cancelable: true });
+            formOriginal.dispatchEvent(eventoSubmit);
+        }
+
+        // Inicializador de Eventos e Temas
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('btnLogar')?.addEventListener('click', () => { if(typeof executarLogin === 'function') executarLogin(); });
             document.getElementById('btnDeslogar')?.addEventListener('click', () => { if(typeof deslogar === 'function') deslogar(); });
@@ -338,15 +282,14 @@
             
             document.getElementById('btnTema')?.addEventListener('click', () => {
                 const html = document.documentElement;
-                const atual = html.getAttribute('data-theme');
-                const novo = atual === 'dark' ? 'light' : 'dark';
-                html.setAttribute('data-theme', novo);
-                localStorage.setItem('theme_preference', novo);
+                const novoTema = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                html.setAttribute('data-theme', novoTema);
+                localStorage.setItem('theme_preference', novoTema);
             });
             const salvo = localStorage.getItem('theme_preference') || 'dark';
             document.documentElement.setAttribute('data-theme', salvo);
         });
     </script>
-    <script src="./app.js?v=300"></script>
+    <script src="./app.js?v=400"></script>
 </body>
 </html>

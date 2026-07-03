@@ -7,7 +7,6 @@ const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           
 // ======// =========================================================================
 // =========================================================================
-
 let bancoSupabase = null;
 try {
     bancoSupabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
@@ -97,14 +96,14 @@ async function salvarGasto(e) {
             novosGastos.push({
                 id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
                 desc: `${desc} (${i + 1}/${qtd})`, categoria, valor: val,
-                vencimento: d.toISOString().split('T')[0], eh_familiar: ehFamiliar, pago: false, tipo: 'parcelado'
+                vencimento: d.toISOString().split('T')[0], eh_familiar: ehFamiliar, pago: false, tipo: 'parcelado', data_pagamento: null
             });
         }
     } else {
         const val = parseFloat(document.getElementById('valorInput').value) || 0;
         novosGastos.push({
             id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
-            desc, categoria, valor: val, vencimento: vencimentoOriginal, eh_familiar: ehFamiliar, pago: false, tipo: tipoConta
+            desc, categoria, valor: val, vencimento: vencimentoOriginal, eh_familiar: ehFamiliar, pago: false, tipo: tipoConta, data_pagamento: null
         });
     }
 
@@ -158,14 +157,18 @@ function atualizarInterface() {
                 if(tbody) {
                     const tr = document.createElement('tr');
                     if(g.pago) tr.className = "linha-paga";
+                    
+                    // Se o registro possuir uma data de pagamento salva, exibe discretamente abaixo da descrição
+                    const textoPagamento = g.pago && g.data_pagamento ? `<br><small style="color:var(--success); font-weight:normal;">Pago em: ${g.data_pagamento.split('-').reverse().join('/')}</small>` : '';
+
                     tr.innerHTML = `
-                        <td data-label="Descrição"><b>${g.desc}</b></td>
+                        <td data-label="Descrição"><b>${g.desc}</b>${textoPagamento}</td>
                         <td data-label="Categoria">${g.categoria}</td>
                         <td data-label="Vencimento">${g.vencimento.split('-').reverse().join('/')}</td>
                         <td data-label="Valor">R$ ${g.valor.toFixed(2)}</td>
                         <td style="text-align:center;">
-                            <button style="background:var(--success); color:#0f172a; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem;" onclick="alternarStatusPago('${g.id}', ${g.pago})">✓</button>
-                            <button style="background:var(--danger); color:white; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem;" onclick="deletarGasto('${g.id}', '${g.id_grupo}', '${g.tipo}')">X</button>
+                            <button style="background:var(--success); color:#0f172a; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="alternarStatusPago('${g.id}', ${g.pago})">✓</button>
+                            <button style="background:var(--danger); color:white; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="deletarGasto('${g.id}', '${g.id_grupo}', '${g.tipo}')">X</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -181,12 +184,20 @@ function atualizarInterface() {
     renderizarGrafico(resumoGrafico);
 }
 
+// Modificado: Agora armazena a data exata em formato ISO (AAAA-MM-DD) no momento do pagamento
 async function alternarStatusPago(id, status) {
-    try { await bancoSupabase.from('gastos').update({ pago: !status }).eq('id', id); await carregarDadosNuvem(); } catch(e){}
+    const dataAtual = !status ? new Date().toISOString().split('T')[0] : null;
+    try { 
+        await bancoSupabase.from('gastos').update({ 
+            pago: !status,
+            data_pagamento: dataAtual 
+        }).eq('id', id); 
+        await carregarDadosNuvem(); 
+    } catch(e){}
 }
 
+// Modificado: Mensagem de confirmação deletada! Agora apaga silenciosamente de forma instantânea
 async function deletarGasto(id, idGrupo, tipo) {
-    if(!confirm("Apagar lançamento(s)?")) return;
     try {
         if(tipo === 'parcelado') await bancoSupabase.from('gastos').delete().eq('id_grupo', idGrupo);
         else await bancoSupabase.from('gastos').delete().eq('id', id);
@@ -212,7 +223,12 @@ function renderizarGrafico(dados) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+    // Escutador nativo do formulário para salvar com o clique ou tecla ENTER
     document.getElementById('gastoForm')?.addEventListener('submit', salvarGasto);
+    
+    // Adiciona o ouvinte direto no botão físico para garantir a execução do formulário
+    document.getElementById('btnSalvarGasto')?.addEventListener('click', salvarGasto);
+
     document.getElementById('tipoContaSelect')?.addEventListener('change', alternarCamposTipo);
     const sessao = localStorage.getItem('sessao_usuario');
     if(sessao) { usuarioLogado = JSON.parse(sessao); entrarNoPainel(); }

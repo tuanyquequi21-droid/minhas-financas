@@ -88,13 +88,9 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
         th { background: rgba(0,0,0,0.05); color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; }
-        @media (max-width: 600px) {
-            table, thead, tbody, th, td, tr { display: block; }
-            thead { display: none; }
-            tr { border: 1px solid var(--border); margin-bottom: 8px; border-radius: 8px; padding: 8px; background: var(--surface); }
-            td { display: flex; justify-content: space-between; padding: 4px 0; border: none; }
-            td::before { content: attr(data-label); font-weight: bold; color: var(--text-muted); }
-        }
+        
+        /* Estilos para os botões de ação gerados dinamicamente */
+        .btn-excluir, .btn-deletar { background: var(--danger) !important; color: white !important; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.75rem; }
     </style>
 </head>
 <body>
@@ -227,7 +223,8 @@
                             <input type="checkbox" id="gastoFamiliarCheck" style="width:16px; height:16px;">
                             <label for="gastoFamiliarCheck" style="color:var(--purple); font-weight:bold; cursor:pointer;">💜 Conta Conjunta / Familiar</label>
                         </div>
-                        <button type="button" id="btnSalvarGasto" style="width:100%; background:var(--success); color:#000; border:none; height:38px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.9rem;">Salvar Registro</button>
+                        
+                        <button type="submit" id="btnSalvarGasto" onclick="if(typeof salvarGasto === 'function') { event.preventDefault(); salvarGasto(); } else if(typeof cadastrarGasto === 'function') { event.preventDefault(); cadastrarGasto(); }" style="width:100%; background:var(--success); color:#000; border:none; height:38px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.9rem;">Salvar Registro</button>
                     </form>
                 </div>
             </div>
@@ -243,7 +240,6 @@
     </div>
 
     <script>
-        // Função Dinâmica para Troca de Abas Superiores
         function mudarAba(nomeAba, botaoClicado) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn-top').forEach(el => el.classList.remove('active'));
@@ -252,34 +248,44 @@
             botaoClicado.classList.add('active');
         }
 
-        // Função de Pesquisa Dinâmica (Filtro instantâneo na tabela)
         function filtrarTabela() {
             const termo = document.getElementById('campoPesquisa').value.toLowerCase();
             const linhas = document.querySelectorAll('#tabelaCorpo tr');
             
             linhas.forEach(linha => {
-                const textoLinha = line.innerText || linha.textContent || "";
+                const textoLinha = linha.innerText || linha.textContent || "";
                 linha.style.display = textoLinha.toLowerCase().includes(termo) ? "" : "none";
             });
         }
 
-        // Interceptador Inteligente para a tecla Enter (Dispara o clique físico do botão correspondente)
+        // Delegação de eventos global para interceptar cliques nos botões de exclusão gerados pelo app.js
+        document.addEventListener('click', function(e) {
+            // Se o botão clicado contiver classes de exclusão comuns, ou texto correspondente
+            if (e.target && (e.target.classList.contains('btn-excluir') || e.target.classList.contains('btn-deletar') || e.target.innerText === 'Excluir' || e.target.innerText === '❌')) {
+                // Se o app.js tiver uma função global de exclusão atrelada, damos suporte a ela aqui
+                const registroId = e.target.getAttribute('data-id');
+                if (registroId && typeof deletarRegistro === 'function') {
+                    deletarRegistro(registroId);
+                }
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
+            // Escuta Enter na tela de login
             const dispararLogin = (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    const btn = document.getElementById('btnLogar');
-                    if (btn) btn.click();
+                    document.getElementById('btnLogar').click();
                 }
             };
             document.getElementById('loginEmail')?.addEventListener('keydown', dispararLogin);
             document.getElementById('loginSenha')?.addEventListener('keydown', dispararLogin);
 
+            // Escuta Enter nos campos para simular o clique do botão Salvar de forma limpa
             const dispararCadastro = (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    const btn = document.getElementById('btnSalvarGasto');
-                    if (btn) btn.click();
+                    document.getElementById('btnSalvarGasto').click();
                 }
             };
             document.getElementById('desc')?.addEventListener('keydown', dispararCadastro);
@@ -298,6 +304,6 @@
             document.documentElement.setAttribute('data-theme', salvo);
         });
     </script>
-    <script src="./app.js?v=force_refresh_final"></script>
+    <script src="./app.js?v=9999"></script>
 </body>
 </html>

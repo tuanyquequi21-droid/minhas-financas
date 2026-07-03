@@ -100,18 +100,18 @@
 <body>
 
     <div id="telaLogin" class="login-wrapper">
-        <form class="login-card" onsubmit="event.preventDefault(); if(typeof executarLogin === 'function') executarLogin();">
+        <div class="login-card">
             <h3 style="margin: 0 0 16px 0; text-align: center;">Acessar Sistema</h3>
             <div class="input-group">
                 <label>E-mail</label>
-                <input type="email" id="loginEmail" placeholder="seu@email.com" required>
+                <input type="email" id="loginEmail" placeholder="seu@email.com" required onkeydown="if(event.key === 'Enter') document.getElementById('btnLogar').click()">
             </div>
             <div class="input-group">
                 <label>Senha</label>
-                <input type="password" id="loginSenha" placeholder="••••••••" required>
+                <input type="password" id="loginSenha" placeholder="••••••••" required onkeydown="if(event.key === 'Enter') document.getElementById('btnLogar').click()">
             </div>
-            <button type="submit" style="width:100%; background:var(--primary); color:white; border:none; height:38px; border-radius:6px; font-weight:bold; cursor:pointer;">Entrar</button>
-        </form>
+            <button type="button" id="btnLogar" style="width:100%; background:var(--primary); color:white; border:none; height:38px; border-radius:6px; font-weight:bold; cursor:pointer;">Entrar</button>
+        </div>
     </div>
 
     <div id="appContainer" style="display: none;">

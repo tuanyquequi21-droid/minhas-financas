@@ -110,7 +110,7 @@
                 <label>Senha</label>
                 <input type="password" id="loginSenha" placeholder="••••••••" required>
             </div>
-            <button type="button" id="btnLogar" style="width:100%; background:var(--primary); color:white; border:none; height:38px; border-radius:6px; font-weight:bold; cursor:pointer;">Entrar</button>
+            <button type="button" id="btnLogar" onclick="if(typeof executarLogin === 'function') executarLogin();" style="width:100%; background:var(--primary); color:white; border:none; height:38px; border-radius:6px; font-weight:bold; cursor:pointer;">Entrar</button>
         </div>
     </div>
 
@@ -124,7 +124,7 @@
             <div style="display: flex; gap: 8px; align-items: center;">
                 <span id="userDisplayTag" style="font-size: 0.8rem; font-weight: 600; margin-right: 4px;">👤 Carregando...</span>
                 <button type="button" id="btnTema" style="background:transparent; border:1px solid var(--border); color:var(--text-main); padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.75rem;">🌓 Tema</button>
-                <button type="button" id="btnDeslogar" style="background:var(--danger); color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.75rem; font-weight:bold;">Sair</button>
+                <button type="button" id="btnDeslogar" onclick="if(typeof deslogar === 'function') deslogar();" style="background:var(--danger); color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.75rem; font-weight:bold;">Sair</button>
             </div>
         </header>
 
@@ -132,7 +132,7 @@
             <button type="button" onclick="document.getElementById('tabsMeses').scrollLeft -= 60" style="background:transparent; border:none; color:var(--text-main); cursor:pointer;">◀</button>
             <div class="months-carousel" id="tabsMeses"></div>
             <button type="button" onclick="document.getElementById('tabsMeses').scrollLeft += 60" style="background:transparent; border:none; color:var(--text-main); cursor:pointer;">▶</button>
-            <button type="button" id="btnNovoMes" style="background:var(--text-main); color:var(--bg); border:none; padding:4px 10px; border-radius:12px; font-size:0.7rem; font-weight:bold; cursor:pointer;">+ Mês</button>
+            <button type="button" id="btnNovoMes" onclick="if(typeof criarNovoMes === 'function') criarNovoMes();" style="background:var(--text-main); color:var(--bg); border:none; padding:4px 10px; border-radius:12px; font-size:0.7rem; font-weight:bold; cursor:pointer;">+ Mês</button>
         </div>
 
         <main class="main-container">
@@ -258,28 +258,28 @@
             const linhas = document.querySelectorAll('#tabelaCorpo tr');
             
             linhas.forEach(linha => {
-                const textoLinha = linha.innerText.toLowerCase();
-                linha.style.display = textoLinha.includes(termo) ? "" : "none";
+                const textoLinha = line.innerText || linha.textContent || "";
+                linha.style.display = textoLinha.toLowerCase().includes(termo) ? "" : "none";
             });
         }
 
-        // Interceptador Inteligente para a tecla Enter (Login e Cadastro)
+        // Interceptador Inteligente para a tecla Enter (Dispara o clique físico do botão correspondente)
         document.addEventListener('DOMContentLoaded', () => {
-            // Escuta Enter na tela de login
             const dispararLogin = (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    document.getElementById('btnLogar').click();
+                    const btn = document.getElementById('btnLogar');
+                    if (btn) btn.click();
                 }
             };
             document.getElementById('loginEmail')?.addEventListener('keydown', dispararLogin);
             document.getElementById('loginSenha')?.addEventListener('keydown', dispararLogin);
 
-            // Escuta Enter nos campos do formulário para salvar apenas uma vez
             const dispararCadastro = (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    document.getElementById('btnSalvarGasto').click();
+                    const btn = document.getElementById('btnSalvarGasto');
+                    if (btn) btn.click();
                 }
             };
             document.getElementById('desc')?.addEventListener('keydown', dispararCadastro);
@@ -287,7 +287,7 @@
             document.getElementById('valorParcelaInput')?.addEventListener('keydown', dispararCadastro);
             document.getElementById('qtdParcelasInput')?.addEventListener('keydown', dispararCadastro);
 
-            // Conectores dos botões originais com segurança
+            // Troca de Tema
             document.getElementById('btnTema')?.addEventListener('click', () => {
                 const html = document.documentElement;
                 const novoTema = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -298,6 +298,6 @@
             document.documentElement.setAttribute('data-theme', salvo);
         });
     </script>
-    <script src="./app.js?v=999"></script>
+    <script src="./app.js?v=force_refresh_final"></script>
 </body>
 </html>

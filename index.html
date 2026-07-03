@@ -45,7 +45,7 @@
         }
 
         /* 🔐 LOGIN */
-        .login-wrapper { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .login-wrapper { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; box-sizing: border-box; }
         .login-card { width: 100%; max-width: 340px; background: var(--surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 
         /* 🏢 HEADER & ABAS SUPERIORES NAV */
@@ -66,7 +66,7 @@
         .tab-content { display: none !important; }
         .tab-content.active { display: block !important; }
 
-        /* ⚡ GRIDA DE CARDS */
+        /* ⚡ GRID DE CARDS */
         .grid-dash { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
         @media(min-width: 600px) { .grid-dash { grid-template-columns: repeat(4, 1fr); } }
         .card-dash { background: var(--surface); padding: 12px; border-radius: 8px; border: 1px solid var(--border); border-left: 4px solid var(--border); }
@@ -114,20 +114,6 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const escutarEnter = (evento) => {
-                if (evento.key === 'Enter') {
-                    evento.preventDefault();
-                    document.getElementById('btnLogar')?.click();
-                }
-            };
-            
-            document.getElementById('loginEmail')?.addEventListener('keydown', escutarEnter);
-            document.getElementById('loginSenha')?.addEventListener('keydown', escutarEnter);
-        });
-    </script>
-
     <div id="appContainer" style="display: none;">
         <header class="app-header">
             <div class="nav-tabs-top">
@@ -136,6 +122,7 @@
                 <button class="tab-btn-top" onclick="mudarAba('Grafico', this)">📈 Gráficos</button>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
+                <span id="userDisplayTag" style="font-size: 0.8rem; font-weight: 600; margin-right: 4px;">👤 Carregando...</span>
                 <button type="button" id="btnTema" style="background:transparent; border:1px solid var(--border); color:var(--text-main); padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.75rem;">🌓 Tema</button>
                 <button type="button" id="btnDeslogar" style="background:var(--danger); color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.75rem; font-weight:bold;">Sair</button>
             </div>
@@ -194,11 +181,10 @@
             <div id="abaNovo" class="tab-content">
                 <div class="form-box">
                     <h3 style="margin-top:0; margin-bottom:16px; font-size:1rem;">Cadastrar Lançamento</h3>
-                    
                     <form id="gastoForm" onsubmit="return false;">
                         <div class="input-group">
                             <label>Descrição</label>
-                            <input type="text" id="desc" placeholder="Ex: Conta de Luz" required onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('btnSalvarGasto').click(); }">
+                            <input type="text" id="desc" placeholder="Ex: Conta de Luz" required>
                         </div>
                         <div class="input-group">
                             <label>Categoria</label>
@@ -226,16 +212,16 @@
                         <div id="camposParcelas" style="display:none; gap:8px; margin-bottom:12px;">
                             <div class="input-group" style="width:50%;">
                                 <label>Qtd Parcelas</label>
-                                <input type="number" id="qtdParcelasInput" value="2" min="2" onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('btnSalvarGasto').click(); }">
+                                <input type="number" id="qtdParcelasInput" value="2" min="2">
                             </div>
                             <div class="input-group" style="width:50%;">
                                 <label>Valor da Parcela</label>
-                                <input type="number" id="valorParcelaInput" placeholder="0.00" step="0.01" onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('btnSalvarGasto').click(); }">
+                                <input type="number" id="valorParcelaInput" placeholder="0.00" step="0.01">
                             </div>
                         </div>
                         <div class="input-group" id="campoValorNormal">
                             <label>Valor</label>
-                            <input type="number" id="valorInput" placeholder="0.00" step="0.01" onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('btnSalvarGasto').click(); }">
+                            <input type="number" id="valorInput" placeholder="0.00" step="0.01">
                         </div>
                         <div style="margin: 14px 0; display:flex; align-items:center; gap:8px;">
                             <input type="checkbox" id="gastoFamiliarCheck" style="width:16px; height:16px;">
@@ -245,6 +231,16 @@
                     </form>
                 </div>
             </div>
+
+            <div id="abaGrafico" class="tab-content" style="text-align: center;">
+                <div style="background: var(--surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border); display:inline-block; width:100%; max-width:360px; box-sizing:border-box;">
+                    <h3 style="margin-top:0; margin-bottom:16px;">Gastos por Categoria</h3>
+                    <canvas id="graficoCategorias"></canvas>
+                </div>
+            </div>
+
+        </main>
+    </div>
 
     <script>
         // Função Dinâmica para Troca de Abas Superiores
@@ -263,28 +259,35 @@
             
             linhas.forEach(linha => {
                 const textoLinha = linha.innerText.toLowerCase();
-                if(textoLinha.includes(termo)) {
-                    linha.style.display = "";
-                } else {
-                    linha.style.display = "none";
-                }
+                linha.style.display = textoLinha.includes(termo) ? "" : "none";
             });
         }
 
-        // Função Ponte de Proteção para o Envio do app.js
-        function salvarRegistroSimulado() {
-            const formOriginal = document.getElementById('gastoForm');
-            // Dispara o evento original que o seu app.js precisa capturar
-            const eventoSubmit = new Event('submit', { bubbles: true, cancelable: true });
-            formOriginal.dispatchEvent(eventoSubmit);
-        }
-
-        // Inicializador de Eventos e Temas
+        // Interceptador Inteligente para a tecla Enter (Login e Cadastro)
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('btnLogar')?.addEventListener('click', () => { if(typeof executarLogin === 'function') executarLogin(); });
-            document.getElementById('btnDeslogar')?.addEventListener('click', () => { if(typeof deslogar === 'function') deslogar(); });
-            document.getElementById('btnNovoMes')?.addEventListener('click', () => { if(typeof criarNovoMes === 'function') criarNovoMes(); });
-            
+            // Escuta Enter na tela de login
+            const dispararLogin = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('btnLogar').click();
+                }
+            };
+            document.getElementById('loginEmail')?.addEventListener('keydown', dispararLogin);
+            document.getElementById('loginSenha')?.addEventListener('keydown', dispararLogin);
+
+            // Escuta Enter nos campos do formulário para salvar apenas uma vez
+            const dispararCadastro = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('btnSalvarGasto').click();
+                }
+            };
+            document.getElementById('desc')?.addEventListener('keydown', dispararCadastro);
+            document.getElementById('valorInput')?.addEventListener('keydown', dispararCadastro);
+            document.getElementById('valorParcelaInput')?.addEventListener('keydown', dispararCadastro);
+            document.getElementById('qtdParcelasInput')?.addEventListener('keydown', dispararCadastro);
+
+            // Conectores dos botões originais com segurança
             document.getElementById('btnTema')?.addEventListener('click', () => {
                 const html = document.documentElement;
                 const novoTema = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -295,6 +298,6 @@
             document.documentElement.setAttribute('data-theme', salvo);
         });
     </script>
-    <script src="./app.js?v=400"></script>
+    <script src="./app.js?v=999"></script>
 </body>
 </html>

@@ -100,18 +100,18 @@
 <body>
 
     <div id="telaLogin" class="login-wrapper">
-        <div class="login-card">
+        <form class="login-card" onsubmit="if(typeof executarLogin === 'function') { executarLogin(); } return false;">
             <h3 style="margin: 0 0 16px 0; text-align: center;">Acessar Sistema</h3>
             <div class="input-group">
                 <label>E-mail</label>
-                <input type="email" id="loginEmail" placeholder="seu@email.com" required onkeydown="if(event.key === 'Enter') document.getElementById('btnLogar').click()">
+                <input type="email" id="loginEmail" placeholder="seu@email.com" required>
             </div>
             <div class="input-group">
                 <label>Senha</label>
-                <input type="password" id="loginSenha" placeholder="••••••••" required onkeydown="if(event.key === 'Enter') document.getElementById('btnLogar').click()">
+                <input type="password" id="loginSenha" placeholder="••••••••" required>
             </div>
-            <button type="button" id="btnLogar" style="width:100%; background:var(--primary); color:white; border:none; height:38px; border-radius:6px; font-weight:bold; cursor:pointer;">Entrar</button>
-        </div>
+            <button type="submit" id="btnLogar" style="width:100%; background:var(--primary); color:white; border:none; height:38px; border-radius:6px; font-weight:bold; cursor:pointer;">Entrar</button>
+        </form>
     </div>
 
     <div id="appContainer" style="display: none;">
@@ -180,10 +180,11 @@
             <div id="abaNovo" class="tab-content">
                 <div class="form-box">
                     <h3 style="margin-top:0; margin-bottom:16px; font-size:1rem;">Cadastrar Lançamento</h3>
-                    <form id="gastoForm" onsubmit="if(typeof salvarRegistroSimulado === 'function') { event.preventDefault(); salvarRegistroSimulado(); }">
+                    
+                    <form id="gastoForm" onsubmit="return false;">
                         <div class="input-group">
                             <label>Descrição</label>
-                            <input type="text" id="desc" placeholder="Ex: Conta de Luz" required>
+                            <input type="text" id="desc" placeholder="Ex: Conta de Luz" required onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('btnSalvarGasto').click(); }">
                         </div>
                         <div class="input-group">
                             <label>Categoria</label>
@@ -211,35 +212,25 @@
                         <div id="camposParcelas" style="display:none; gap:8px; margin-bottom:12px;">
                             <div class="input-group" style="width:50%;">
                                 <label>Qtd Parcelas</label>
-                                <input type="number" id="qtdParcelasInput" value="2" min="2">
+                                <input type="number" id="qtdParcelasInput" value="2" min="2" onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('btnSalvarGasto').click(); }">
                             </div>
                             <div class="input-group" style="width:50%;">
                                 <label>Valor da Parcela</label>
-                                <input type="number" id="valorParcelaInput" placeholder="0.00" step="0.01">
+                                <input type="number" id="valorParcelaInput" placeholder="0.00" step="0.01" onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('btnSalvarGasto').click(); }">
                             </div>
                         </div>
                         <div class="input-group" id="campoValorNormal">
                             <label>Valor</label>
-                            <input type="number" id="valorInput" placeholder="0.00" step="0.01">
+                            <input type="number" id="valorInput" placeholder="0.00" step="0.01" onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('btnSalvarGasto').click(); }">
                         </div>
                         <div style="margin: 14px 0; display:flex; align-items:center; gap:8px;">
                             <input type="checkbox" id="gastoFamiliarCheck" style="width:16px; height:16px;">
                             <label for="gastoFamiliarCheck" style="color:var(--purple); font-weight:bold; cursor:pointer;">💜 Conta Conjunta / Familiar</label>
                         </div>
-                        <button type="submit" id="btnSalvarGasto" style="width:100%; background:var(--success); color:#000; border:none; height:38px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.9rem;">Salvar Registro</button>
+                        <button type="button" id="btnSalvarGasto" style="width:100%; background:var(--success); color:#000; border:none; height:38px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.9rem;">Salvar Registro</button>
                     </form>
                 </div>
             </div>
-
-            <div id="abaGrafico" class="tab-content" style="text-align: center;">
-                <div style="background: var(--surface); padding: 24px; border-radius: 12px; border: 1px solid var(--border); display:inline-block; width:100%; max-width:360px; box-sizing:border-box;">
-                    <h3 style="margin-top:0; margin-bottom:16px;">Gastos por Categoria</h3>
-                    <canvas id="graficoCategorias"></canvas>
-                </div>
-            </div>
-
-        </main>
-    </div>
 
     <script>
         // Função Dinâmica para Troca de Abas Superiores

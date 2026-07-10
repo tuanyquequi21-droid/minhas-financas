@@ -77,12 +77,13 @@ function alternarCamposTipo() {
     }
 }
 
+// 🔥 FUNÇÃO DE SALVAMENTO ULTRA CORRIGIDA E BLINDADA
 async function salvarGasto(e) {
     if (e && typeof e.preventDefault === 'function') {
         e.preventDefault();
     }
     
-    const desc = document.getElementById('desc').value;
+    const desc = document.getElementById('desc').value.trim();
     const categoria = document.getElementById('categoria').value;
     const vencimentoOriginal = document.getElementById('vencimento').value;
     const ehFamiliar = document.getElementById('gastoFamiliarCheck').checked;
@@ -96,40 +97,68 @@ async function salvarGasto(e) {
     const idGrupo = Date.now().toString();
     let novosGastos = [];
 
-    // 🔥 REMOVIDO 'data_pagamento: null' DAQUI PARA GARANTIR COMPATIBILIDADE DA TABELA ORIGINAL
+    // Captura o valor correto dependendo do tipo selecionado no HTML
     if (tipoConta === "parcelado") {
         const qtd = parseInt(document.getElementById('qtdParcelasInput').value) || 2;
         const val = parseFloat(document.getElementById('valorParcelaInput').value) || 0;
+        
+        if(val <= 0) { alert("Insira um valor válido para a parcela."); return; }
+        
         let dataBase = new Date(vencimentoOriginal + "T00:00:00");
         for (let i = 0; i < qtd; i++) {
             let d = new Date(dataBase); d.setMonth(dataBase.getMonth() + i);
             novosGastos.push({
-                id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
-                desc: `${desc} (${i + 1}/${qtd})`, categoria, valor: val,
-                vencimento: d.toISOString().split('T')[0], eh_familiar: ehFamiliar, pago: false, tipo: 'parcelado'
+                id_grupo: idGrupo, 
+                usuario_dono: usuarioLogado.email,
+                desc: `${desc} (${i + 1}/${qtd})`, 
+                categoria: categoria, 
+                valor: val,
+                vencimento: d.toISOString().split('T')[0], 
+                eh_familiar: ehFamiliar, 
+                pago: false, 
+                tipo: 'parcelado'
             });
         }
     } else {
         const val = parseFloat(document.getElementById('valorInput').value) || 0;
+        
+        if(val <= 0) { alert("Insira um valor válido para o registro."); return; }
+        
         novosGastos.push({
-            id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
-            desc, categoria, valor: val, vencimento: vencimentoOriginal, eh_familiar: ehFamiliar, pago: false, tipo: tipoConta
+            id_grupo: idGrupo, 
+            usuario_dono: usuarioLogado.email,
+            desc: desc, 
+            categoria: categoria, 
+            valor: val, 
+            vencimento: vencimentoOriginal, 
+            eh_familiar: ehFamiliar, 
+            pago: false, 
+            tipo: tipoConta
         });
     }
 
     try {
+        // Envia para o Supabase
         const { error } = await bancoSupabase.from('gastos').insert(novosGastos);
+        
+        // Se o Supabase rejeitar, mostra o motivo exato na tela e NÃO limpa os campos
         if (error) {
-            alert("Erro do banco: " + error.message);
+            alert("Erro retornado pelo Banco (Supabase): " + error.message);
+            console.error(error);
             return;
         }
+        
+        // SÓ LIMPA O FORMULÁRIO SE SALVOU COM SUCESSO!
         document.getElementById('gastoForm').reset();
         document.getElementById('tipoContaSelect').value = 'normal';
         alternarCamposTipo();
+        
+        // Atualiza a tabela na tela
         await carregarDadosNuvem();
+        
     } catch (err) { 
         console.error(err);
-        alert("Erro ao conectar e salvar."); 
+        alert("Erro crítico de conexão ao tentar salvar."); 
     }
 }
 
@@ -175,7 +204,6 @@ function atualizarInterface() {
                     const tr = document.createElement('tr');
                     if(g.pago) tr.className = "linha-paga";
                     
-                    // Tratamento seguro caso a coluna data_pagamento ainda não exista no banco
                     const textoPagamento = g.pago && g.data_pagamento ? `<br><small style="color:var(--success); font-weight:normal;">Pago em: ${g.data_pagamento.split('-').reverse().join('/')}</small>` : '';
 
                     tr.innerHTML = `
@@ -204,12 +232,10 @@ function atualizarInterface() {
 async function alternarStatusPago(id, status) {
     const dataAtual = !status ? new Date().toISOString().split('T')[0] : null;
     try { 
-        // Se a coluna não existir, ele vai atualizar apenas o status 'pago' sem quebrar
         let dadosAtualizar = { pago: !status };
         if (gastos.length > 0 && 'data_pagamento' in gastos[0]) {
             dadosAtualizar.data_pagamento = dataAtual;
         }
-        
         await bancoSupabase.from('gastos').update(dadosAtualizar).eq('id', id); 
         await carregarDadosNuvem(); 
     } catch(e){}

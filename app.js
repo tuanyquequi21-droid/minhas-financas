@@ -188,6 +188,153 @@ function atualizarInterface() {
         };
     }
 
+    let bancoSupabase = null;
+try {
+    bancoSupabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+} catch(e) {
+    console.error("Erro ao carregar SDK Supabase.");
+}
+
+let usuarioLogado = null;
+let mesSelecionado = "2026-07";
+let mesesDisponiveis = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
+let gastos = [];
+let salarios = {};
+let meuGrafico = null;
+
+async function executarLogin() {
+    const emailField = document.getElementById('loginEmail');
+    const senhaField = document.getElementById('loginSenha');
+    if (!emailField || !senhaField || !emailField.value || !senhaField.value) {
+        alert("Por favor, preencha todos os campos."); return;
+    }
+    try {
+        const { data, error } = await bancoSupabase.auth.signInWithPassword({
+            email: emailField.value.trim(), password: senhaField.value
+        });
+        if (error) { alert("Erro: " + error.message); return; }
+        usuarioLogado = data.user;
+        localStorage.setItem('sessao_usuario', JSON.stringify(usuarioLogado));
+        entrarNoPainel();
+    } catch (err) { alert("Erro de conexão."); }
+}
+
+function entrarNoPainel() {
+    document.getElementById('telaLogin').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'block';
+    if(usuarioLogado) document.getElementById('userDisplayTag').innerText = `👤 ${usuarioLogado.email.split('@')[0]}`;
+    carregarDadosNuvem();
+}
+
+function deslogar() {
+    try { bancoSupabase.auth.signOut(); } catch(e){}
+    localStorage.removeItem('sessao_usuario');
+    window.location.reload();
+}
+
+async function carregarDadosNuvem() {
+    if (!usuarioLogado) return;
+    try {
+        const { data: dGastos } = await bancoSupabase.from('gastos').select('*');
+        gastos = dGastos || [];
+    } catch (e) { gastos = []; }
+
+    try {
+        const { data: dSalarios } = await bancoSupabase.from('salarios').select('*');
+        salarios = {};
+        if (dSalarios) dSalarios.forEach(s => { salarios[s.chave_salario] = s.valor; });
+    } catch (e) {}
+    atualizarInterface();
+}
+
+function alternarCamposTipo() {
+    const tipo = document.getElementById('tipoContaSelect').value;
+    const camposP = document.getElementById('camposParcelas');
+    const campoV = document.getElementById('campoValorNormal');
+    if (tipo === 'parcelado') {
+        camposP.style.display = 'flex'; campoV.style.display = 'none';
+    } else {
+        camposP.style.display = 'none'; campoV.style.display = 'block';
+    }
+}
+
+async function salvarGasto(e) {
+    if (e && typeof e.preventDefault === 'function') {
+        e.preventDefault();
+    }
+    
+    const desc = document.getElementById('desc').value.trim();
+    const categoria = document.getElementById('categoria').value;
+    const vencimentoOriginal = document.getElementById('vencimento').value;
+    const ehFamiliar = document.getElementById('gastoFamiliarCheck').checked;
+    const tipoConta = document.getElementById('tipoContaSelect').value;
+    
+    if (!desc || !vencimentoOriginal) {
+        alert("Por favor, preencha a descrição e a data de vencimento.");
+        return;
+    }
+
+    const idGrupo = Date.now().toString();
+    let novosGastos = [];
+
+    if (tipoConta === "parcelado") {
+        const qtd = parseInt(document.getElementById('qtdParcelasInput').value) || 2;
+        const val = parseFloat(document.getElementById('valorParcelaInput').value) || 0;
+        if(val <= 0) { alert("Insira um valor válido para a parcela."); return; }
+        let dataBase = new Date(vencimentoOriginal + "T00:00:00");
+        for (let i = 0; i < qtd; i++) {
+            let d = new Date(dataBase); d.setMonth(dataBase.getMonth() + i);
+            novosGastos.push({
+                id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
+                desc: `${desc} (${i + 1}/${qtd})`, categoria: categoria, valor: val,
+                vencimento: d.toISOString().split('T')[0], eh_familiar: ehFamiliar, pago: false, tipo: 'parcelado'
+            });
+        }
+    } else {
+        const val = parseFloat(document.getElementById('valorInput').value) || 0;
+        if(val <= 0) { alert("Insira um valor válido para o registro."); return; }
+        novosGastos.push({
+            id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
+            desc: desc, categoria: categoria, valor: val, vencimento: vencimentoOriginal, eh_familiar: ehFamiliar, pago: false, tipo: tipoConta
+        });
+    }
+
+    try {
+        const { error } = await bancoSupabase.from('gastos').insert(novosGastos);
+        if (error) { alert("Erro: " + error.message); return; }
+        document.getElementById('gastoForm').reset();
+        document.getElementById('tipoContaSelect').value = 'normal';
+        alternarCamposTipo();
+        await carregarDadosNuvem();
+    } catch (err) { alert("Erro crítico ao salvar."); }
+}
+
+function atualizarInterface() {
+    const containerTabs = document.getElementById('tabsMeses');
+    if(!containerTabs) return;
+    containerTabs.innerHTML = '';
+    
+    mesesDisponiveis.forEach(m => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `month-pill ${m === mesSelecionado ? 'active' : ''}`;
+        btn.innerText = m;
+        btn.onclick = () => { mesSelecionado = m; atualizarInterface(); };
+        containerTabs.appendChild(btn);
+    });
+
+    const emailU = usuarioLogado.email;
+    const salKey = `${emailU}_${mesSelecionado}`;
+    const salInput = document.getElementById('salarioInput');
+    if(salInput) {
+        salInput.value = salarios[salKey] || '';
+        salInput.onchange = async (e) => {
+            const val = parseFloat(e.target.value) || 0;
+            await bancoSupabase.from('salarios').upsert({ chave_salario: salKey, valor: val }, { onConflict: 'chave_salario' });
+            await carregarDadosNuvem();
+        };
+    }
+
     let totalFamiliar = 0, meusGastos = 0, resumoGrafico = {};
     const tbody = document.getElementById('tabelaCorpo');
     if(tbody) tbody.innerHTML = '';
@@ -196,23 +343,35 @@ function atualizarInterface() {
         if(g.vencimento && g.vencimento.startsWith(mesSelecionado)) {
             const visivel = (g.usuario_dono === emailU) || g.eh_familiar;
             if(visivel) {
+                // Se a conta for conjunta (familiar), ela entra no total familiar independente de estar paga ou não
                 if(g.eh_familiar) totalFamiliar += g.valor;
+                // Se for sua conta individual, só soma no "A Pagar" se não tiver sido paga ainda!
                 else if(!g.pago) meusGastos += g.valor;
+                
                 resumoGrafico[g.categoria] = (resumoGrafico[g.categoria] || 0) + g.valor;
 
                 if(tbody) {
                     const tr = document.createElement('tr');
-                    if(g.pago) tr.className = "linha-paga";
                     
-                    const textoPagamento = g.pago && g.data_pagamento ? `<br><small style="color:var(--success); font-weight:normal;">Pago em: ${g.data_pagamento.split('-').reverse().join('/')}</small>` : '';
+                    // 🔥 MODIFICAÇÃO VISUAL DA LINHA PAGA: Se estiver pago, aplica opacidade e risca o texto
+                    if(g.pago) {
+                        tr.style.opacity = "0.4";
+                        tr.style.textDecoration = "line-through";
+                    }
+                    
+                    const textoPagamento = g.pago && g.data_pagamento ? `<br><small style="color:var(--success); font-weight:normal; text-decoration:none; display:inline-block;">✓ Pago em: ${g.data_pagamento.split('-').reverse().join('/')}</small>` : '';
+
+                    // Mudamos o ícone do botão de (✓) para (↩) se já estiver pago, permitindo desfazer se clicar errado
+                    const iconeBotao = g.pago ? '↩' : '✓';
+                    const corBotao = g.pago ? 'var(--text-muted)' : 'var(--success)';
 
                     tr.innerHTML = `
                         <td data-label="Descrição"><b>${g.desc}</b>${textoPagamento}</td>
                         <td data-label="Categoria">${g.categoria}</td>
                         <td data-label="Vencimento">${g.vencimento.split('-').reverse().join('/')}</td>
                         <td data-label="Valor">R$ ${g.valor.toFixed(2)}</td>
-                        <td style="text-align:center;">
-                            <button style="background:var(--success); color:#0f172a; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="alternarStatusPago('${g.id}', ${g.pago})">✓</button>
+                        <td style="text-align:center; text-decoration:none !important;">
+                            <button style="background:${corBotao}; color:#0f172a; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; font-weight:bold; cursor:pointer;" onclick="alternarStatusPago('${g.id}', ${g.pago})">${iconeBotao}</button>
                             <button style="background:var(--danger); color:white; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="deletarGasto('${g.id}', '${g.id_grupo}', '${g.tipo}')">X</button>
                         </td>
                     `;
@@ -225,6 +384,8 @@ function atualizarInterface() {
     document.getElementById('dashFamiliar').innerText = `R$ ${totalFamiliar.toFixed(2)}`;
     document.getElementById('dashAPagar').innerText = `R$ ${meusGastos.toFixed(2)}`;
     const rSal = salarios[salKey] || 0;
+    
+    // O Saldo desconta as suas contas individuais pendentes e as familiares
     document.getElementById('dashSaldo').innerText = `R$ ${(rSal - (meusGastos + totalFamiliar)).toFixed(2)}`;
     renderizarGrafico(resumoGrafico);
 }
@@ -268,12 +429,8 @@ function renderizarGrafico(dados) {
 
 window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('gastoForm')?.addEventListener('submit', salvarGasto);
-    
     const btnSalvar = document.getElementById('btnSalvarGasto');
-    if (btnSalvar) {
-        btnSalvar.onclick = salvarGasto;
-    }
-
+    if (btnSalvar) { btnSalvar.onclick = salvarGasto; }
     document.getElementById('tipoContaSelect')?.addEventListener('change', alternarCamposTipo);
     const sessao = localStorage.getItem('sessao_usuario');
     if(sessao) { usuarioLogado = JSON.parse(sessao); entrarNoPainel(); }

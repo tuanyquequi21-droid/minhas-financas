@@ -267,11 +267,22 @@ function renderizarGrafico(dados) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+    // 🔥 ATIVADOR DO BOTÃO DE LOGIN (Garante a ação ao clicar em Entrar)
+    const btnLogin = document.getElementById('btnEntrarLogin') || document.querySelector('#telaLogin button');
+    if (btnLogin) {
+        btnLogin.onclick = (e) => {
+            e.preventDefault();
+            executarLogin();
+        };
+    }
+
+    // Mantém os escutadores do formulário de gastos ativos
     document.getElementById('gastoForm')?.addEventListener('submit', salvarGasto);
     const btnSalvar = document.getElementById('btnSalvarGasto');
     if (btnSalvar) { btnSalvar.onclick = salvarGasto; }
     document.getElementById('tipoContaSelect')?.addEventListener('change', alternarCamposTipo);
     
+    // Auto-login se já houver sessão salva
     const sessao = localStorage.getItem('sessao_usuario');
     if(sessao) { 
         usuarioLogado = JSON.parse(sessao); 

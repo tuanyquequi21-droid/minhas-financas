@@ -6,6 +6,7 @@
 const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co"; 
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           
 // ======// =========================================================================
+
 let bancoSupabase = null;
 try {
     if (SUPABASE_URL && SUPABASE_KEY && !SUPABASE_URL.includes("sua-url-aqui")) {
@@ -32,7 +33,7 @@ async function executarLogin() {
     }
     
     if (!bancoSupabase) {
-        alert("Atenção: O sistema não conseguiu se conectar ao Supabase. Verifique se você colocou a sua SUPABASE_URL and SUPABASE_KEY corretamente no início do arquivo app.js.");
+        alert("Atenção: Conexão pendente com o Supabase. Verifique suas chaves no app.js.");
         return;
     }
 
@@ -122,7 +123,8 @@ async function salvarGasto(e) {
             novosGastos.push({
                 id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
                 desc: `${desc} (${i + 1}/${qtd})`, categoria: categoria, valor: val,
-                vencimento: d.toISOString().split('T')[0], eh_familiar: ehFamiliar, pago: false, tipo: 'parcelado'
+                vencimento: d.toISOString().split('T')[0], eh_familiar: ehFamiliar, pago: false, tipo: 'parcelado',
+                encerrado: false
             });
         }
     } else {
@@ -130,7 +132,8 @@ async function salvarGasto(e) {
         if(val <= 0) { alert("Insira um valor válido para o registro."); return; }
         novosGastos.push({
             id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
-            desc: desc, categoria: categoria, valor: val, vencimento: vencimentoOriginal, eh_familiar: ehFamiliar, pago: false, tipo: tipoConta
+            desc: desc, categoria: categoria, valor: val, vencimento: vencimentoOriginal, eh_familiar: ehFamiliar, pago: false, tipo: tipoConta,
+            encerrado: false
         });
     }
 
@@ -173,7 +176,12 @@ function atualizarInterface() {
         };
     }
 
-    let totalFamiliar = 0, meusGastos = 0, resumoGrafico = {};
+    // 🔥 NOVAS VARIÁVEIS DE CÁLCULO FINANCEIRO
+    let totalFamiliar = 0;
+    let meusGastosAPagar = 0;
+    let meusGastosJaPagos = 0; 
+    let resumoGrafico = {};
+    
     const tbody = document.getElementById('tabelaCorpo');
     if(tbody) tbody.innerHTML = '';
 
@@ -181,29 +189,50 @@ function atualizarInterface() {
         if(g.vencimento && g.vencimento.startsWith(mesSelecionado)) {
             const visivel = (g.usuario_dono === emailU) || g.eh_familiar;
             if(visivel) {
-                if(g.eh_familiar) totalFamiliar += g.valor;
-                else if(!g.pago) meusGastos += g.valor;
-                
-                resumoGrafico[g.categoria] = (resumoGrafico[g.categoria] || 0) + g.valor;
+                // Se o item foi finalizado/encerrado permanentemente, ele não entra nos cálculos normais
+                const estaEncerrado = g.encerrado || g.desc.includes("[QUITADO]");
+
+                if (!estaEncerrado) {
+                    if(g.eh_familiar) {
+                        totalFamiliar += g.valor;
+                    } else {
+                        // 🔥 NOVA MATEMÁTICA: SEPARA O QUE ESTÁ PAGO DO QUE FALTA PAGAR
+                        if(g.pago) {
+                            meusGastosJaPagos += g.valor;
+                        } else {
+                            meusGastosAPagar += g.valor;
+                        }
+                    }
+                    resumoGrafico[g.categoria] = (resumoGrafico[g.categoria] || 0) + g.valor;
+                }
 
                 if(tbody) {
                     const tr = document.createElement('tr');
-                    if(g.pago) {
-                        tr.style.opacity = "0.4";
+                    
+                    // Estilização dependendo do estado da conta
+                    if (estaEncerrado) {
+                        tr.style.opacity = "0.3";
+                        tr.style.background = "#1e293b";
+                    } else if(g.pago) {
+                        tr.style.opacity = "0.6";
                         tr.style.textDecoration = "line-through";
                     }
+                    
                     const textoPagamento = g.pago && g.data_pagamento ? `<br><small style="color:var(--success); font-weight:normal; text-decoration:none; display:inline-block;">✓ Pago em: ${g.data_pagamento.split('-').reverse().join('/')}</small>` : '';
+                    const textoEncerrado = estaEncerrado ? `<br><small style="color:#f43f5e; font-weight:bold; text-decoration:none;">🔒 CONTA ENCERRADA</small>` : '';
+                    
                     const iconeBotao = g.pago ? '↩' : '✓';
                     const corBotao = g.pago ? 'var(--text-muted)' : 'var(--success)';
 
                     tr.innerHTML = `
-                        <td data-label="Descrição"><b>${g.desc}</b>${textoPagamento}</td>
+                        <td data-label="Descrição"><b>${g.desc}</b>${textoPagamento}${textoEncerrado}</td>
                         <td data-label="Categoria">${g.categoria}</td>
                         <td data-label="Vencimento">${g.vencimento.split('-').reverse().join('/')}</td>
                         <td data-label="Valor">R$ ${g.valor.toFixed(2)}</td>
                         <td style="text-align:center; text-decoration:none !important;">
-                            <button style="background:${corBotao}; color:#0f172a; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; font-weight:bold; cursor:pointer;" onclick="alternarStatusPago('${g.id}', ${g.pago})">${iconeBotao}</button>
-                            <button style="background:var(--danger); color:white; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="deletarGasto('${g.id}', '${g.id_grupo}', '${g.tipo}')">X</button>
+                            ${!estaEncerrado ? `<button title="Marcar como Pago" style="background:${corBotao}; color:#0f172a; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; font-weight:bold; cursor:pointer;" onclick="alternarStatusPago('${g.id}', ${g.pago})">${iconeBotao}</button>` : ''}
+                            ${!estaEncerrado ? `<button title="Encerrar/Quitar Conta" style="background:#f43f5e; color:white; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="encerrarContaDefinitivo('${g.id}', '${g.desc}')">🔒</button>` : ''}
+                            <button title="Excluir" style="background:var(--danger); color:white; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="deletarGasto('${g.id}', '${g.id_grupo}', '${g.tipo}')">X</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -212,15 +241,22 @@ function atualizarInterface() {
         }
     });
 
+    // 🔥 ATUALIZAÇÃO DOS BLOCOS DO DASHBOARD
+    const rSal = salarios[salKey] || 0; // Renda Recebida
+    
     const dFam = document.getElementById('dashFamiliar');
     const dPag = document.getElementById('dashAPagar');
+    const dJaPago = document.getElementById('dashJaPago'); // Asegure-se de criar este ID no seu HTML
     const dSal = document.getElementById('dashSaldo');
 
     if(dFam) dFam.innerText = `R$ ${totalFamiliar.toFixed(2)}`;
-    if(dPag) dPag.innerText = `R$ ${meusGastos.toFixed(2)}`;
+    if(dPag) dPag.innerText = `R$ ${meusGastosAPagar.toFixed(2)}`;
+    if(dJaPago) dJaPago.innerText = `R$ ${meusGastosJaPagos.toFixed(2)}`;
     
-    const rSal = salarios[salKey] || 0;
-    if(dSal) dSal.innerText = `R$ ${(rSal - (meusGastos + totalFamiliar)).toFixed(2)}`;
+    // 🔥 CÁLCULO DO SALDO PEDIDO: RENDA - APENAS O QUE JÁ FOI PAGO
+    const saldoCalculado = rSal - meusGastosJaPagos;
+    if(dSal) dSal.innerText = `R$ ${saldoCalculado.toFixed(2)}`;
+    
     renderizarGrafico(resumoGrafico);
 }
 
@@ -235,6 +271,27 @@ async function alternarStatusPago(id, status) {
         await bancoSupabase.from('gastos').update(dadosAtualizar).eq('id', id); 
         await carregarDadosNuvem(); 
     } catch(e){}
+}
+
+// 🔥 NOVA FUNÇÃO PARA FINALIZAR/QUITAR CONTA DEFINITIVAMENTE
+async function encerrarContaDefinitivo(id, descricaoAntiga) {
+    if(!bancoSupabase) return;
+    if(!confirm(`Deseja encerrar e quitar em definitivo a conta "${descricaoAntiga}"? Ela sairá dos cálculos ativos.`)) return;
+    
+    try {
+        let dadosAtualizar = { desc: descricaoAntiga + " [QUITADO]" };
+        // Caso sua tabela tenha a coluna estrutural 'encerrado'
+        if (gastos.length > 0 && 'encerrado' in gastos[0]) {
+            dadosAtualizar.encerrado = true;
+        }
+        // Força o status de pago ao mesmo tempo
+        dadosAtualizar.pago = true;
+
+        await bancoSupabase.from('gastos').update(dadosAtualizar).eq('id', id);
+        await carregarDadosNuvem();
+    } catch(e) {
+        console.error("Erro ao encerrar conta:", e);
+    }
 }
 
 async function deletarGasto(id, idGrupo, tipo) {
@@ -263,7 +320,6 @@ function renderizarGrafico(dados) {
     });
 }
 
-// 🔥 SEÇÃO DE GATILHOS TOTALMENTE REVISADA E CORRIGIDA
 window.onload = function() {
     const btnLogin = document.getElementById('btnEntrarLogin') || document.querySelector('#telaLogin button') || document.querySelector('button');
     if (btnLogin) {
@@ -276,7 +332,6 @@ window.onload = function() {
     document.getElementById('gastoForm')?.addEventListener('submit', salvarGasto);
     const btnSalvar = document.getElementById('btnSalvarGasto');
     if (btnSalvar) { btnSalvar.onclick = salvarGasto; }
-    
     document.getElementById('tipoContaSelect')?.addEventListener('change', alternarCamposTipo);
     
     const sessao = localStorage.getItem('sessao_usuario');

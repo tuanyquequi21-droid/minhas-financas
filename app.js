@@ -6,28 +6,18 @@
 const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co"; 
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           
 // ======// =========================================================================
-// =========================================================================
-// --- RESTANTE DO CÓDIGO DO SEU SISTEMA (MANTENHA IGUAL) ---
 let bancoSupabase = null;
 try {
-    bancoSupabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+    if (SUPABASE_URL && SUPABASE_KEY && !SUPABASE_URL.includes("sua-url-aqui")) {
+        bancoSupabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+    }
 } catch(e) {
-    console.error("Erro ao carregar SDK Supabase.");
+    console.error("Erro ao carregar SDK Supabase:", e);
 }
 
 let usuarioLogado = null;
-
-const dataHoje = new Date();
-const anoAtual = dataHoje.getFullYear();
-const mesAtual = String(dataHoje.getMonth() + 1).padStart(2, '0');
-let mesSelecionado = `${anoAtual}-${mesAtual}`;
-
+let mesSelecionado = "2026-07";
 let mesesDisponiveis = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
-if (!mesesDisponiveis.includes(mesSelecionado)) {
-    mesesDisponiveis.push(mesSelecionado);
-    mesesDisponiveis.sort();
-}
-
 let gastos = [];
 let salarios = {};
 let meuGrafico = null;
@@ -35,9 +25,17 @@ let meuGrafico = null;
 async function executarLogin() {
     const emailField = document.getElementById('loginEmail');
     const senhaField = document.getElementById('loginSenha');
+    
     if (!emailField || !senhaField || !emailField.value || !senhaField.value) {
-        alert("Por favor, preencha todos os campos."); return;
+        alert("Por favor, preencha todos os campos."); 
+        return;
     }
+    
+    if (!bancoSupabase) {
+        alert("Atenção: O sistema não conseguiu se conectar ao Supabase. Verifique se você colocou a sua SUPABASE_URL and SUPABASE_KEY corretamente no início do arquivo app.js.");
+        return;
+    }
+
     try {
         const { data, error } = await bancoSupabase.auth.signInWithPassword({
             email: emailField.value.trim(), password: senhaField.value
@@ -46,7 +44,7 @@ async function executarLogin() {
         usuarioLogado = data.user;
         localStorage.setItem('sessao_usuario', JSON.stringify(usuarioLogado));
         entrarNoPainel();
-    } catch (err) { alert("Erro de conexão."); }
+    } catch (err) { alert("Erro de conexão com o servidor."); }
 }
 
 function entrarNoPainel() {
@@ -69,7 +67,7 @@ function deslogar() {
 }
 
 async function carregarDadosNuvem() {
-    if (!usuarioLogado) return;
+    if (!usuarioLogado || !bancoSupabase) return;
     try {
         const { data: dGastos } = await bancoSupabase.from('gastos').select('*');
         gastos = dGastos || [];
@@ -97,9 +95,8 @@ function alternarCamposTipo() {
 }
 
 async function salvarGasto(e) {
-    if (e && typeof e.preventDefault === 'function') {
-        e.preventDefault();
-    }
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    if (!bancoSupabase) return;
     
     const desc = document.getElementById('desc').value.trim();
     const categoria = document.getElementById('categoria').value;
@@ -191,12 +188,10 @@ function atualizarInterface() {
 
                 if(tbody) {
                     const tr = document.createElement('tr');
-                    
                     if(g.pago) {
                         tr.style.opacity = "0.4";
                         tr.style.textDecoration = "line-through";
                     }
-                    
                     const textoPagamento = g.pago && g.data_pagamento ? `<br><small style="color:var(--success); font-weight:normal; text-decoration:none; display:inline-block;">✓ Pago em: ${g.data_pagamento.split('-').reverse().join('/')}</small>` : '';
                     const iconeBotao = g.pago ? '↩' : '✓';
                     const corBotao = g.pago ? 'var(--text-muted)' : 'var(--success)';
@@ -230,6 +225,7 @@ function atualizarInterface() {
 }
 
 async function alternarStatusPago(id, status) {
+    if(!bancoSupabase) return;
     const dataAtual = !status ? new Date().toISOString().split('T')[0] : null;
     try { 
         let dadosAtualizar = { pago: !status };
@@ -242,6 +238,7 @@ async function alternarStatusPago(id, status) {
 }
 
 async function deletarGasto(id, idGrupo, tipo) {
+    if(!bancoSupabase) return;
     try {
         if(tipo === 'parcelado') await bancoSupabase.from('gastos').delete().eq('id_grupo', idGrupo);
         else await bancoSupabase.from('gastos').delete().eq('id', id);
@@ -266,26 +263,25 @@ function renderizarGrafico(dados) {
     });
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-    // 🔥 ATIVADOR DO BOTÃO DE LOGIN (Garante a ação ao clicar em Entrar)
-    const btnLogin = document.getElementById('btnEntrarLogin') || document.querySelector('#telaLogin button');
+// 🔥 SEÇÃO DE GATILHOS TOTALMENTE REVISADA E CORRIGIDA
+window.onload = function() {
+    const btnLogin = document.getElementById('btnEntrarLogin') || document.querySelector('#telaLogin button') || document.querySelector('button');
     if (btnLogin) {
-        btnLogin.onclick = (e) => {
-            e.preventDefault();
+        btnLogin.onclick = function(e) {
+            if(e && typeof e.preventDefault === 'function') e.preventDefault();
             executarLogin();
         };
     }
 
-    // Mantém os escutadores do formulário de gastos ativos
     document.getElementById('gastoForm')?.addEventListener('submit', salvarGasto);
     const btnSalvar = document.getElementById('btnSalvarGasto');
     if (btnSalvar) { btnSalvar.onclick = salvarGasto; }
+    
     document.getElementById('tipoContaSelect')?.addEventListener('change', alternarCamposTipo);
     
-    // Auto-login se já houver sessão salva
     const sessao = localStorage.getItem('sessao_usuario');
     if(sessao) { 
         usuarioLogado = JSON.parse(sessao); 
         entrarNoPainel(); 
     }
-});
+};

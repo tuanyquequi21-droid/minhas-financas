@@ -7,6 +7,7 @@ const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           
 // ======// =========================================================================
 // =========================================================================
+// --- RESTANTE DO CÓDIGO DO SEU SISTEMA (MANTENHA IGUAL) ---
 let bancoSupabase = null;
 try {
     bancoSupabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
@@ -16,7 +17,6 @@ try {
 
 let usuarioLogado = null;
 
-// 🔥 CORRIGIDO: Captura o ano e mês atual dinamicamente em vez de travar fixo
 const dataHoje = new Date();
 const anoAtual = dataHoje.getFullYear();
 const mesAtual = String(dataHoje.getMonth() + 1).padStart(2, '0');
@@ -50,7 +50,6 @@ async function executarLogin() {
 }
 
 function entrarNoPainel() {
-    // Garante que os elementos existem antes de mudar o estilo para evitar travamentos
     const loginTela = document.getElementById('telaLogin');
     const appTela = document.getElementById('appContainer');
     const tagUsuario = document.getElementById('userDisplayTag');
@@ -149,7 +148,6 @@ async function salvarGasto(e) {
 }
 
 function atualizarInterface() {
-    // 🔥 BLINDAGEM: Se o usuário ainda não logou ou o painel principal está oculto, interrompe para não quebrar
     const appTela = document.getElementById('appContainer');
     if (!appTela || appTela.style.display === 'none' || !usuarioLogado) return;
 

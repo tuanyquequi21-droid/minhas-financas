@@ -78,15 +78,25 @@ function alternarCamposTipo() {
 }
 
 async function salvarGasto(e) {
-    if (e) e.preventDefault();
+    if (e && typeof e.preventDefault === 'function') {
+        e.preventDefault();
+    }
+    
     const desc = document.getElementById('desc').value;
     const categoria = document.getElementById('categoria').value;
     const vencimentoOriginal = document.getElementById('vencimento').value;
     const ehFamiliar = document.getElementById('gastoFamiliarCheck').checked;
     const tipoConta = document.getElementById('tipoContaSelect').value;
+    
+    if (!desc || !vencimentoOriginal) {
+        alert("Por favor, preencha a descrição e a data de vencimento.");
+        return;
+    }
+
     const idGrupo = Date.now().toString();
     let novosGastos = [];
 
+    // 🔥 REMOVIDO 'data_pagamento: null' DAQUI PARA GARANTIR COMPATIBILIDADE DA TABELA ORIGINAL
     if (tipoConta === "parcelado") {
         const qtd = parseInt(document.getElementById('qtdParcelasInput').value) || 2;
         const val = parseFloat(document.getElementById('valorParcelaInput').value) || 0;
@@ -96,24 +106,31 @@ async function salvarGasto(e) {
             novosGastos.push({
                 id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
                 desc: `${desc} (${i + 1}/${qtd})`, categoria, valor: val,
-                vencimento: d.toISOString().split('T')[0], eh_familiar: ehFamiliar, pago: false, tipo: 'parcelado', data_pagamento: null
+                vencimento: d.toISOString().split('T')[0], eh_familiar: ehFamiliar, pago: false, tipo: 'parcelado'
             });
         }
     } else {
         const val = parseFloat(document.getElementById('valorInput').value) || 0;
         novosGastos.push({
             id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
-            desc, categoria, valor: val, vencimento: vencimentoOriginal, eh_familiar: ehFamiliar, pago: false, tipo: tipoConta, data_pagamento: null
+            desc, categoria, valor: val, vencimento: vencimentoOriginal, eh_familiar: ehFamiliar, pago: false, tipo: tipoConta
         });
     }
 
     try {
-        await bancoSupabase.from('gastos').insert(novosGastos);
+        const { error } = await bancoSupabase.from('gastos').insert(novosGastos);
+        if (error) {
+            alert("Erro do banco: " + error.message);
+            return;
+        }
         document.getElementById('gastoForm').reset();
         document.getElementById('tipoContaSelect').value = 'normal';
         alternarCamposTipo();
         await carregarDadosNuvem();
-    } catch (err) { alert("Erro ao salvar."); }
+    } catch (err) { 
+        console.error(err);
+        alert("Erro ao conectar e salvar."); 
+    }
 }
 
 function atualizarInterface() {
@@ -158,7 +175,7 @@ function atualizarInterface() {
                     const tr = document.createElement('tr');
                     if(g.pago) tr.className = "linha-paga";
                     
-                    // Se o registro possuir uma data de pagamento salva, exibe discretamente abaixo da descrição
+                    // Tratamento seguro caso a coluna data_pagamento ainda não exista no banco
                     const textoPagamento = g.pago && g.data_pagamento ? `<br><small style="color:var(--success); font-weight:normal;">Pago em: ${g.data_pagamento.split('-').reverse().join('/')}</small>` : '';
 
                     tr.innerHTML = `
@@ -184,19 +201,20 @@ function atualizarInterface() {
     renderizarGrafico(resumoGrafico);
 }
 
-// Modificado: Agora armazena a data exata em formato ISO (AAAA-MM-DD) no momento do pagamento
 async function alternarStatusPago(id, status) {
     const dataAtual = !status ? new Date().toISOString().split('T')[0] : null;
     try { 
-        await bancoSupabase.from('gastos').update({ 
-            pago: !status,
-            data_pagamento: dataAtual 
-        }).eq('id', id); 
+        // Se a coluna não existir, ele vai atualizar apenas o status 'pago' sem quebrar
+        let dadosAtualizar = { pago: !status };
+        if (gastos.length > 0 && 'data_pagamento' in gastos[0]) {
+            dadosAtualizar.data_pagamento = dataAtual;
+        }
+        
+        await bancoSupabase.from('gastos').update(dadosAtualizar).eq('id', id); 
         await carregarDadosNuvem(); 
     } catch(e){}
 }
 
-// Modificado: Mensagem de confirmação deletada! Agora apaga silenciosamente de forma instantânea
 async function deletarGasto(id, idGrupo, tipo) {
     try {
         if(tipo === 'parcelado') await bancoSupabase.from('gastos').delete().eq('id_grupo', idGrupo);
@@ -223,11 +241,12 @@ function renderizarGrafico(dados) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    // Escutador nativo do formulário para salvar com o clique ou tecla ENTER
     document.getElementById('gastoForm')?.addEventListener('submit', salvarGasto);
     
-    // Adiciona o ouvinte direto no botão físico para garantir a execução do formulário
-    document.getElementById('btnSalvarGasto')?.addEventListener('click', salvarGasto);
+    const btnSalvar = document.getElementById('btnSalvarGasto');
+    if (btnSalvar) {
+        btnSalvar.onclick = salvarGasto;
+    }
 
     document.getElementById('tipoContaSelect')?.addEventListener('change', alternarCamposTipo);
     const sessao = localStorage.getItem('sessao_usuario');

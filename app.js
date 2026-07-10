@@ -15,8 +15,19 @@ try {
 }
 
 let usuarioLogado = null;
-let mesSelecionado = "2026-07";
+
+// 🔥 CORRIGIDO: Captura o ano e mês atual dinamicamente em vez de travar fixo
+const dataHoje = new Date();
+const anoAtual = dataHoje.getFullYear();
+const mesAtual = String(dataHoje.getMonth() + 1).padStart(2, '0');
+let mesSelecionado = `${anoAtual}-${mesAtual}`;
+
 let mesesDisponiveis = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
+if (!mesesDisponiveis.includes(mesSelecionado)) {
+    mesesDisponiveis.push(mesSelecionado);
+    mesesDisponiveis.sort();
+}
+
 let gastos = [];
 let salarios = {};
 let meuGrafico = null;
@@ -39,9 +50,16 @@ async function executarLogin() {
 }
 
 function entrarNoPainel() {
-    document.getElementById('telaLogin').style.display = 'none';
-    document.getElementById('appContainer').style.display = 'block';
-    if(usuarioLogado) document.getElementById('userDisplayTag').innerText = `👤 ${usuarioLogado.email.split('@')[0]}`;
+    // Garante que os elementos existem antes de mudar o estilo para evitar travamentos
+    const loginTela = document.getElementById('telaLogin');
+    const appTela = document.getElementById('appContainer');
+    const tagUsuario = document.getElementById('userDisplayTag');
+
+    if (loginTela) loginTela.style.display = 'none';
+    if (appTela) appTela.style.display = 'block';
+    if (usuarioLogado && tagUsuario) {
+        tagUsuario.innerText = `👤 ${usuarioLogado.email.split('@')[0]}`;
+    }
     carregarDadosNuvem();
 }
 
@@ -71,190 +89,11 @@ function alternarCamposTipo() {
     const camposP = document.getElementById('camposParcelas');
     const campoV = document.getElementById('campoValorNormal');
     if (tipo === 'parcelado') {
-        camposP.style.display = 'flex'; campoV.style.display = 'none';
+        if(camposP) camposP.style.display = 'flex'; 
+        if(campoV) campoV.style.display = 'none';
     } else {
-        camposP.style.display = 'none'; campoV.style.display = 'block';
-    }
-}
-
-// 🔥 FUNÇÃO DE SALVAMENTO ULTRA CORRIGIDA E BLINDADA
-async function salvarGasto(e) {
-    if (e && typeof e.preventDefault === 'function') {
-        e.preventDefault();
-    }
-    
-    const desc = document.getElementById('desc').value.trim();
-    const categoria = document.getElementById('categoria').value;
-    const vencimentoOriginal = document.getElementById('vencimento').value;
-    const ehFamiliar = document.getElementById('gastoFamiliarCheck').checked;
-    const tipoConta = document.getElementById('tipoContaSelect').value;
-    
-    if (!desc || !vencimentoOriginal) {
-        alert("Por favor, preencha a descrição e a data de vencimento.");
-        return;
-    }
-
-    const idGrupo = Date.now().toString();
-    let novosGastos = [];
-
-    // Captura o valor correto dependendo do tipo selecionado no HTML
-    if (tipoConta === "parcelado") {
-        const qtd = parseInt(document.getElementById('qtdParcelasInput').value) || 2;
-        const val = parseFloat(document.getElementById('valorParcelaInput').value) || 0;
-        
-        if(val <= 0) { alert("Insira um valor válido para a parcela."); return; }
-        
-        let dataBase = new Date(vencimentoOriginal + "T00:00:00");
-        for (let i = 0; i < qtd; i++) {
-            let d = new Date(dataBase); d.setMonth(dataBase.getMonth() + i);
-            novosGastos.push({
-                id_grupo: idGrupo, 
-                usuario_dono: usuarioLogado.email,
-                desc: `${desc} (${i + 1}/${qtd})`, 
-                categoria: categoria, 
-                valor: val,
-                vencimento: d.toISOString().split('T')[0], 
-                eh_familiar: ehFamiliar, 
-                pago: false, 
-                tipo: 'parcelado'
-            });
-        }
-    } else {
-        const val = parseFloat(document.getElementById('valorInput').value) || 0;
-        
-        if(val <= 0) { alert("Insira um valor válido para o registro."); return; }
-        
-        novosGastos.push({
-            id_grupo: idGrupo, 
-            usuario_dono: usuarioLogado.email,
-            desc: desc, 
-            categoria: categoria, 
-            valor: val, 
-            vencimento: vencimentoOriginal, 
-            eh_familiar: ehFamiliar, 
-            pago: false, 
-            tipo: tipoConta
-        });
-    }
-
-    try {
-        // Envia para o Supabase
-        const { error } = await bancoSupabase.from('gastos').insert(novosGastos);
-        
-        // Se o Supabase rejeitar, mostra o motivo exato na tela e NÃO limpa os campos
-        if (error) {
-            alert("Erro retornado pelo Banco (Supabase): " + error.message);
-            console.error(error);
-            return;
-        }
-        
-        // SÓ LIMPA O FORMULÁRIO SE SALVOU COM SUCESSO!
-        document.getElementById('gastoForm').reset();
-        document.getElementById('tipoContaSelect').value = 'normal';
-        alternarCamposTipo();
-        
-        // Atualiza a tabela na tela
-        await carregarDadosNuvem();
-        
-    } catch (err) { 
-        console.error(err);
-        alert("Erro crítico de conexão ao tentar salvar."); 
-    }
-}
-
-function atualizarInterface() {
-    const containerTabs = document.getElementById('tabsMeses');
-    if(!containerTabs) return;
-    containerTabs.innerHTML = '';
-    
-    mesesDisponiveis.forEach(m => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = `month-pill ${m === mesSelecionado ? 'active' : ''}`;
-        btn.innerText = m;
-        btn.onclick = () => { mesSelecionado = m; atualizarInterface(); };
-        containerTabs.appendChild(btn);
-    });
-
-    const emailU = usuarioLogado.email;
-    const salKey = `${emailU}_${mesSelecionado}`;
-    const salInput = document.getElementById('salarioInput');
-    if(salInput) {
-        salInput.value = salarios[salKey] || '';
-        salInput.onchange = async (e) => {
-            const val = parseFloat(e.target.value) || 0;
-            await bancoSupabase.from('salarios').upsert({ chave_salario: salKey, valor: val }, { onConflict: 'chave_salario' });
-            await carregarDadosNuvem();
-        };
-    }
-
-    let bancoSupabase = null;
-try {
-    bancoSupabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-} catch(e) {
-    console.error("Erro ao carregar SDK Supabase.");
-}
-
-let usuarioLogado = null;
-let mesSelecionado = "2026-07";
-let mesesDisponiveis = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
-let gastos = [];
-let salarios = {};
-let meuGrafico = null;
-
-async function executarLogin() {
-    const emailField = document.getElementById('loginEmail');
-    const senhaField = document.getElementById('loginSenha');
-    if (!emailField || !senhaField || !emailField.value || !senhaField.value) {
-        alert("Por favor, preencha todos os campos."); return;
-    }
-    try {
-        const { data, error } = await bancoSupabase.auth.signInWithPassword({
-            email: emailField.value.trim(), password: senhaField.value
-        });
-        if (error) { alert("Erro: " + error.message); return; }
-        usuarioLogado = data.user;
-        localStorage.setItem('sessao_usuario', JSON.stringify(usuarioLogado));
-        entrarNoPainel();
-    } catch (err) { alert("Erro de conexão."); }
-}
-
-function entrarNoPainel() {
-    document.getElementById('telaLogin').style.display = 'none';
-    document.getElementById('appContainer').style.display = 'block';
-    if(usuarioLogado) document.getElementById('userDisplayTag').innerText = `👤 ${usuarioLogado.email.split('@')[0]}`;
-    carregarDadosNuvem();
-}
-
-function deslogar() {
-    try { bancoSupabase.auth.signOut(); } catch(e){}
-    localStorage.removeItem('sessao_usuario');
-    window.location.reload();
-}
-
-async function carregarDadosNuvem() {
-    if (!usuarioLogado) return;
-    try {
-        const { data: dGastos } = await bancoSupabase.from('gastos').select('*');
-        gastos = dGastos || [];
-    } catch (e) { gastos = []; }
-
-    try {
-        const { data: dSalarios } = await bancoSupabase.from('salarios').select('*');
-        salarios = {};
-        if (dSalarios) dSalarios.forEach(s => { salarios[s.chave_salario] = s.valor; });
-    } catch (e) {}
-    atualizarInterface();
-}
-
-function alternarCamposTipo() {
-    const tipo = document.getElementById('tipoContaSelect').value;
-    const camposP = document.getElementById('camposParcelas');
-    const campoV = document.getElementById('campoValorNormal');
-    if (tipo === 'parcelado') {
-        camposP.style.display = 'flex'; campoV.style.display = 'none';
-    } else {
-        camposP.style.display = 'none'; campoV.style.display = 'block';
+        if(camposP) camposP.style.display = 'none'; 
+        if(campoV) campoV.style.display = 'block';
     }
 }
 
@@ -310,6 +149,10 @@ async function salvarGasto(e) {
 }
 
 function atualizarInterface() {
+    // 🔥 BLINDAGEM: Se o usuário ainda não logou ou o painel principal está oculto, interrompe para não quebrar
+    const appTela = document.getElementById('appContainer');
+    if (!appTela || appTela.style.display === 'none' || !usuarioLogado) return;
+
     const containerTabs = document.getElementById('tabsMeses');
     if(!containerTabs) return;
     containerTabs.innerHTML = '';
@@ -343,9 +186,7 @@ function atualizarInterface() {
         if(g.vencimento && g.vencimento.startsWith(mesSelecionado)) {
             const visivel = (g.usuario_dono === emailU) || g.eh_familiar;
             if(visivel) {
-                // Se a conta for conjunta (familiar), ela entra no total familiar independente de estar paga ou não
                 if(g.eh_familiar) totalFamiliar += g.valor;
-                // Se for sua conta individual, só soma no "A Pagar" se não tiver sido paga ainda!
                 else if(!g.pago) meusGastos += g.valor;
                 
                 resumoGrafico[g.categoria] = (resumoGrafico[g.categoria] || 0) + g.valor;
@@ -353,15 +194,12 @@ function atualizarInterface() {
                 if(tbody) {
                     const tr = document.createElement('tr');
                     
-                    // 🔥 MODIFICAÇÃO VISUAL DA LINHA PAGA: Se estiver pago, aplica opacidade e risca o texto
                     if(g.pago) {
                         tr.style.opacity = "0.4";
                         tr.style.textDecoration = "line-through";
                     }
                     
                     const textoPagamento = g.pago && g.data_pagamento ? `<br><small style="color:var(--success); font-weight:normal; text-decoration:none; display:inline-block;">✓ Pago em: ${g.data_pagamento.split('-').reverse().join('/')}</small>` : '';
-
-                    // Mudamos o ícone do botão de (✓) para (↩) se já estiver pago, permitindo desfazer se clicar errado
                     const iconeBotao = g.pago ? '↩' : '✓';
                     const corBotao = g.pago ? 'var(--text-muted)' : 'var(--success)';
 
@@ -381,12 +219,15 @@ function atualizarInterface() {
         }
     });
 
-    document.getElementById('dashFamiliar').innerText = `R$ ${totalFamiliar.toFixed(2)}`;
-    document.getElementById('dashAPagar').innerText = `R$ ${meusGastos.toFixed(2)}`;
-    const rSal = salarios[salKey] || 0;
+    const dFam = document.getElementById('dashFamiliar');
+    const dPag = document.getElementById('dashAPagar');
+    const dSal = document.getElementById('dashSaldo');
+
+    if(dFam) dFam.innerText = `R$ ${totalFamiliar.toFixed(2)}`;
+    if(dPag) dPag.innerText = `R$ ${meusGastos.toFixed(2)}`;
     
-    // O Saldo desconta as suas contas individuais pendentes e as familiares
-    document.getElementById('dashSaldo').innerText = `R$ ${(rSal - (meusGastos + totalFamiliar)).toFixed(2)}`;
+    const rSal = salarios[salKey] || 0;
+    if(dSal) dSal.innerText = `R$ ${(rSal - (meusGastos + totalFamiliar)).toFixed(2)}`;
     renderizarGrafico(resumoGrafico);
 }
 
@@ -432,6 +273,10 @@ window.addEventListener('DOMContentLoaded', () => {
     const btnSalvar = document.getElementById('btnSalvarGasto');
     if (btnSalvar) { btnSalvar.onclick = salvarGasto; }
     document.getElementById('tipoContaSelect')?.addEventListener('change', alternarCamposTipo);
+    
     const sessao = localStorage.getItem('sessao_usuario');
-    if(sessao) { usuarioLogado = JSON.parse(sessao); entrarNoPainel(); }
+    if(sessao) { 
+        usuarioLogado = JSON.parse(sessao); 
+        entrarNoPainel(); 
+    }
 });

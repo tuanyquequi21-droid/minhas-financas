@@ -1,7 +1,7 @@
 
 
 // =========================================================================
-// ⚠️ EDITE AS DUAS LINHAS ABAIXO COLOCANDO SUAS CHAVES DO SUPABASE
+//  EDITE AS DUAS LINHAS ABAIXO COLOCANDO SUAS CHAVES DO SUPABASE
 // =========================================================================
 const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co"; 
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           
@@ -123,8 +123,7 @@ async function salvarGasto(e) {
             novosGastos.push({
                 id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
                 desc: `${desc} (${i + 1}/${qtd})`, categoria: categoria, valor: val,
-                vencimento: d.toISOString().split('T')[0], eh_familiar: ehFamiliar, pago: false, tipo: 'parcelado',
-                encerrado: false
+                vencimento: d.toISOString().split('T')[0], eh_familiar: ehFamiliar, pago: false, tipo: 'parcelado'
             });
         }
     } else {
@@ -132,8 +131,7 @@ async function salvarGasto(e) {
         if(val <= 0) { alert("Insira um valor válido para o registro."); return; }
         novosGastos.push({
             id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
-            desc: desc, categoria: categoria, valor: val, vencimento: vencimentoOriginal, eh_familiar: ehFamiliar, pago: false, tipo: tipoConta,
-            encerrado: false
+            desc: desc, categoria: categoria, valor: val, vencimento: vencimentoOriginal, eh_familiar: ehFamiliar, pago: false, tipo: tipoConta
         });
     }
 
@@ -176,7 +174,6 @@ function atualizarInterface() {
         };
     }
 
-    // 🔥 NOVAS VARIÁVEIS DE CÁLCULO FINANCEIRO
     let totalFamiliar = 0;
     let meusGastosAPagar = 0;
     let meusGastosJaPagos = 0; 
@@ -189,14 +186,13 @@ function atualizarInterface() {
         if(g.vencimento && g.vencimento.startsWith(mesSelecionado)) {
             const visivel = (g.usuario_dono === emailU) || g.eh_familiar;
             if(visivel) {
-                // Se o item foi finalizado/encerrado permanentemente, ele não entra nos cálculos normais
-                const estaEncerrado = g.encerrado || g.desc.includes("[QUITADO]");
+                // Checa se foi quitado pela marcação do texto
+                const estaEncerrado = g.desc && g.desc.includes("[QUITADO]");
 
                 if (!estaEncerrado) {
                     if(g.eh_familiar) {
                         totalFamiliar += g.valor;
                     } else {
-                        // 🔥 NOVA MATEMÁTICA: SEPARA O QUE ESTÁ PAGO DO QUE FALTA PAGAR
                         if(g.pago) {
                             meusGastosJaPagos += g.valor;
                         } else {
@@ -209,7 +205,6 @@ function atualizarInterface() {
                 if(tbody) {
                     const tr = document.createElement('tr');
                     
-                    // Estilização dependendo do estado da conta
                     if (estaEncerrado) {
                         tr.style.opacity = "0.3";
                         tr.style.background = "#1e293b";
@@ -241,21 +236,19 @@ function atualizarInterface() {
         }
     });
 
-    // 🔥 ATUALIZAÇÃO DOS BLOCOS DO DASHBOARD
-    const rSal = salarios[salKey] || 0; // Renda Recebida
+    const rSal = salarios[salKey] || 0;
     
     const dFam = document.getElementById('dashFamiliar');
     const dPag = document.getElementById('dashAPagar');
-    const dJaPago = document.getElementById('dashJaPago'); // Asegure-se de criar este ID no seu HTML
+    const dJaPago = document.getElementById('dashJaPago'); 
     const dSal = document.getElementById('dashSaldo');
 
     if(dFam) dFam.innerText = `R$ ${totalFamiliar.toFixed(2)}`;
     if(dPag) dPag.innerText = `R$ ${meusGastosAPagar.toFixed(2)}`;
     if(dJaPago) dJaPago.innerText = `R$ ${meusGastosJaPagos.toFixed(2)}`;
     
-    // 🔥 CÁLCULO DO SALDO PEDIDO: RENDA - APENAS O QUE JÁ FOI PAGO
-    const saldoCalculado = rSal - meusGastosJaPagos;
-    if(dSal) dSal.innerText = `R$ ${saldoCalculado.toFixed(2)}`;
+    const saldoRealRestante = rSal - (meusGastosAPagar + meusGastosJaPagos + totalFamiliar);
+    if(dSal) dSal.innerText = `R$ ${saldoRealRestante.toFixed(2)}`;
     
     renderizarGrafico(resumoGrafico);
 }
@@ -273,21 +266,27 @@ async function alternarStatusPago(id, status) {
     } catch(e){}
 }
 
-// 🔥 NOVA FUNÇÃO PARA FINALIZAR/QUITAR CONTA DEFINITIVAMENTE
+// 🔥 CORRIGIDO: ENCERRA A CONTA USANDO APENAS A COLUNA 'desc' E 'pago' (SEM USAR A COLUNA 'encerrado')
 async function encerrarContaDefinitivo(id, descricaoAntiga) {
     if(!bancoSupabase) return;
     if(!confirm(`Deseja encerrar e quitar em definitivo a conta "${descricaoAntiga}"? Ela sairá dos cálculos ativos.`)) return;
     
     try {
-        let dadosAtualizar = { desc: descricaoAntiga + " [QUITADO]" };
-        // Caso sua tabela tenha a coluna estrutural 'encerrado'
-        if (gastos.length > 0 && 'encerrado' in gastos[0]) {
-            dadosAtualizar.encerrado = true;
+        const dataAtual = new Date().toISOString().split('T')[0];
+        let dadosAtualizar = { 
+            desc: descricaoAntiga + " [QUITADO]",
+            pago: true
+        };
+        
+        if (gastos.length > 0 && 'data_pagamento' in gastos[0]) {
+            dadosAtualizar.data_pagamento = dataAtual;
         }
-        // Força o status de pago ao mesmo tempo
-        dadosAtualizar.pago = true;
 
-        await bancoSupabase.from('gastos').update(dadosAtualizar).eq('id', id);
+        const { error } = await bancoSupabase.from('gastos').update(dadosAtualizar).eq('id', id);
+        if (error) {
+            alert("Erro ao encerrar conta: " + error.message);
+            return;
+        }
         await carregarDadosNuvem();
     } catch(e) {
         console.error("Erro ao encerrar conta:", e);

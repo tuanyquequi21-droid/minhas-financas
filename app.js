@@ -121,17 +121,41 @@ async function salvarGasto(e) {
         for (let i = 0; i < qtd; i++) {
             let d = new Date(dataBase); d.setMonth(dataBase.getMonth() + i);
             novosGastos.push({
+<<<<<<< HEAD
                 id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
                 desc: `${desc} (${i + 1}/${qtd})`, categoria: categoria, valor: val,
                 vencimento: d.toISOString().split('T')[0], eh_familiar: ehFamiliar, pago: false, tipo: 'parcelado'
+=======
+                id_grupo: idGrupo, 
+                usuario_dono: usuarioLogado.email,
+                desc: `${desc} (${i + 1}/${qtd})`, 
+                categoria: categoria, 
+                valor: val,
+                vencimento: d.toISOString().split('T')[0], 
+                eh_familiar: ehFamiliar, 
+                pago: false, 
+                tipo: 'parcelado'
+>>>>>>> 0b68746 (atualizando app)
             });
         }
     } else {
         const val = parseFloat(document.getElementById('valorInput').value) || 0;
         if(val <= 0) { alert("Insira um valor válido para o registro."); return; }
         novosGastos.push({
+<<<<<<< HEAD
             id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
             desc: desc, categoria: categoria, valor: val, vencimento: vencimentoOriginal, eh_familiar: ehFamiliar, pago: false, tipo: tipoConta
+=======
+            id_grupo: idGrupo, 
+            usuario_dono: usuarioLogado.email,
+            desc: desc, 
+            categoria: categoria, 
+            valor: val, 
+            vencimento: vencimentoOriginal, 
+            eh_familiar: ehFamiliar, 
+            pago: false, 
+            tipo: tipoConta
+>>>>>>> 0b68746 (atualizando app)
         });
     }
 

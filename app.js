@@ -7,6 +7,7 @@ const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           
 // ======// =========================================================================
 
+// --- CONFIGURAÇÃO E INICIALIZAÇÃO DO SUPABASE ---
 let bancoSupabase = null;
 try {
     if (SUPABASE_URL && SUPABASE_KEY && !SUPABASE_URL.includes("sua-url-aqui")) {
@@ -16,6 +17,7 @@ try {
     console.error("Erro ao carregar SDK Supabase:", e);
 }
 
+// --- VARIÁVEIS GLOBAIS DE ESTADO ---
 let usuarioLogado = null;
 let mesSelecionado = "2026-07";
 let mesesDisponiveis = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
@@ -23,6 +25,7 @@ let gastos = [];
 let salarios = {};
 let meuGrafico = null;
 
+// --- AUTENTICAÇÃO ---
 async function executarLogin() {
     const emailField = document.getElementById('loginEmail');
     const senhaField = document.getElementById('loginSenha');
@@ -39,13 +42,21 @@ async function executarLogin() {
 
     try {
         const { data, error } = await bancoSupabase.auth.signInWithPassword({
-            email: emailField.value.trim(), password: senhaField.value
+            email: emailField.value.trim(), 
+            password: senhaField.value
         });
-        if (error) { alert("Erro: " + error.message); return; }
+
+        if (error) { 
+            alert("Erro no login: " + error.message); 
+            return; 
+        }
+
         usuarioLogado = data.user;
         localStorage.setItem('sessao_usuario', JSON.stringify(usuarioLogado));
         entrarNoPainel();
-    } catch (err) { alert("Erro de conexão com o servidor."); }
+    } catch (err) { 
+        alert("Erro de conexão com o servidor."); 
+    }
 }
 
 function entrarNoPainel() {
@@ -67,25 +78,32 @@ function deslogar() {
     window.location.reload();
 }
 
+// --- CARREGAMENTO DE DADOS ---
 async function carregarDadosNuvem() {
     if (!usuarioLogado || !bancoSupabase) return;
+
     try {
         const { data: dGastos } = await bancoSupabase.from('gastos').select('*');
         gastos = dGastos || [];
-    } catch (e) { gastos = []; }
+    } catch (e) { 
+        gastos = []; 
+    }
 
     try {
         const { data: dSalarios } = await bancoSupabase.from('salarios').select('*');
         salarios = {};
         if (dSalarios) dSalarios.forEach(s => { salarios[s.chave_salario] = s.valor; });
     } catch (e) {}
+
     atualizarInterface();
 }
 
+// --- MANIPULAÇÃO DE FORMULÁRIO DE GASTOS ---
 function alternarCamposTipo() {
     const tipo = document.getElementById('tipoContaSelect').value;
     const camposP = document.getElementById('camposParcelas');
     const campoV = document.getElementById('campoValorNormal');
+
     if (tipo === 'parcelado') {
         if(camposP) camposP.style.display = 'flex'; 
         if(campoV) campoV.style.display = 'none';
@@ -116,10 +134,13 @@ async function salvarGasto(e) {
     if (tipoConta === "parcelado") {
         const qtd = parseInt(document.getElementById('qtdParcelasInput').value) || 2;
         const val = parseFloat(document.getElementById('valorParcelaInput').value) || 0;
+        
         if(val <= 0) { alert("Insira um valor válido para a parcela."); return; }
+        
         let dataBase = new Date(vencimentoOriginal + "T00:00:00");
         for (let i = 0; i < qtd; i++) {
-            let d = new Date(dataBase); d.setMonth(dataBase.getMonth() + i);
+            let d = new Date(dataBase); 
+            d.setMonth(dataBase.getMonth() + i);
             novosGastos.push({
                 id_grupo: idGrupo, 
                 usuario_dono: usuarioLogado.email,
@@ -135,6 +156,7 @@ async function salvarGasto(e) {
     } else {
         const val = parseFloat(document.getElementById('valorInput').value) || 0;
         if(val <= 0) { alert("Insira um valor válido para o registro."); return; }
+        
         novosGastos.push({
             id_grupo: idGrupo, 
             usuario_dono: usuarioLogado.email,
@@ -151,29 +173,33 @@ async function salvarGasto(e) {
     try {
         const { error } = await bancoSupabase.from('gastos').insert(novosGastos);
         if (error) { alert("Erro: " + error.message); return; }
+        
         document.getElementById('gastoForm').reset();
         document.getElementById('tipoContaSelect').value = 'normal';
         alternarCamposTipo();
         await carregarDadosNuvem();
-    } catch (err) { alert("Erro crítico ao salvar."); }
+    } catch (err) { 
+        alert("Erro crítico ao salvar."); 
+    }
 }
 
+// --- RENDERIZAÇÃO DA INTERFACE ---
 function atualizarInterface() {
     const appTela = document.getElementById('appContainer');
     if (!appTela || appTela.style.display === 'none' || !usuarioLogado) return;
 
     const containerTabs = document.getElementById('tabsMeses');
-    if(!containerTabs) return;
-    containerTabs.innerHTML = '';
-    
-    mesesDisponiveis.forEach(m => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = `month-pill ${m === mesSelecionado ? 'active' : ''}`;
-        btn.innerText = m;
-        btn.onclick = () => { mesSelecionado = m; atualizarInterface(); };
-        containerTabs.appendChild(btn);
-    });
+    if(containerTabs) {
+        containerTabs.innerHTML = '';
+        mesesDisponiveis.forEach(m => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `month-pill ${m === mesSelecionado ? 'active' : ''}`;
+            btn.innerText = m;
+            btn.onclick = () => { mesSelecionado = m; atualizarInterface(); };
+            containerTabs.appendChild(btn);
+        });
+    }
 
     const emailU = usuarioLogado.email;
     const salKey = `${emailU}_${mesSelecionado}`;
@@ -189,34 +215,29 @@ function atualizarInterface() {
 
     // 🔄 LÓGICA DE PROJEÇÃO DE GASTOS FIXOS PARA OS PRÓXIMOS MESES
     let listaGastosProcessada = [...gastos];
-    
-    // Filtra todos os gastos fixos originais
     const gastosFixos = gastos.filter(g => g.tipo === 'fixo');
 
     gastosFixos.forEach(gf => {
         const mesOrigem = gf.vencimento ? gf.vencimento.substring(0, 7) : '';
         const estaEncerrado = gf.encerrado || (gf.desc && gf.desc.includes("[QUITADO]"));
 
-        // Se a conta fixo é de um mês anterior ou igual ao selecionado e NÃO está encerrada
         if (mesOrigem && mesOrigem <= mesSelecionado && !estaEncerrado) {
-            // Verifica se já existe um registro real deste fixo no mês selecionado
             const jaExisteNoMes = gastos.some(g => 
                 g.id_grupo === gf.id_grupo && 
                 g.vencimento && 
                 g.vencimento.startsWith(mesSelecionado)
             );
 
-            // Se não existe registro para o mês selecionado, criamos um registro "projetado" para exibição
             if (!jaExisteNoMes && mesOrigem !== mesSelecionado) {
                 const diaVencimento = gf.vencimento.split('-')[2] || '01';
                 const dataProjetada = `${mesSelecionado}-${diaVencimento}`;
 
                 listaGastosProcessada.push({
                     ...gf,
-                    id: `virtual_${gf.id}_${mesSelecionado}`, // ID temporário para o mês
+                    id: `virtual_${gf.id}_${mesSelecionado}`,
                     vencimento: dataProjetada,
-                    pago: false, // Começa como não pago no novo mês
-                    ehVirtual: true // Marcador para saber que é uma projeção
+                    pago: false,
+                    ehVirtual: true
                 });
             }
         }
@@ -266,8 +287,6 @@ function atualizarInterface() {
 
                     const iconeBotao = g.pago ? '↩' : '✓';
                     const corBotao = g.pago ? 'var(--text-muted)' : 'var(--success)';
-
-                    // Passamos o parâmetro ehVirtual para tratar cliques em itens projetados
                     const paramVirtual = g.ehVirtual ? 'true' : 'false';
 
                     tr.innerHTML = `
@@ -304,13 +323,13 @@ function atualizarInterface() {
     renderizarGrafico(resumoGrafico);
 }
 
+// --- AÇÕES NOS GASTOS ---
 async function alternarStatusPago(id, status, ehVirtual = false, idGrupo = null) {
     if(!bancoSupabase) return;
     const dataAtual = !status ? new Date().toISOString().split('T')[0] : null;
 
     try { 
         if (ehVirtual) {
-            // Se for um item virtual, salvamos no banco como um registro real do mês ativo
             const gastoOriginal = gastos.find(g => g.id_grupo === idGrupo);
             if (!gastoOriginal) return;
 
@@ -349,7 +368,6 @@ async function encerrarContaDefinitivo(id, descricaoAntiga, ehVirtual = false, i
     try {
         let targetId = id;
 
-        // Se for um item virtual, encerramos o registro original da conta fixo
         if (ehVirtual) {
             const gastoOriginal = gastos.find(g => g.id_grupo === idGrupo);
             if (gastoOriginal) targetId = gastoOriginal.id;
@@ -372,7 +390,6 @@ async function deletarGasto(id, idGrupo, tipo, ehVirtual = false) {
     if(!bancoSupabase) return;
     try {
         if (ehVirtual) {
-            // Se for virtual e o usuário deletar, exclui o registro fixo original
             await bancoSupabase.from('gastos').delete().eq('id_grupo', idGrupo);
         } else if(tipo === 'parcelado') {
             await bancoSupabase.from('gastos').delete().eq('id_grupo', idGrupo);
@@ -385,7 +402,12 @@ async function deletarGasto(id, idGrupo, tipo, ehVirtual = false) {
 
 function criarNovoMes() {
     const m = prompt("Digite o mês (AAAA-MM):");
-    if(m && !mesesDisponiveis.includes(m)) { mesesDisponiveis.push(m); mesesDisponiveis.sort(); mesSelecionado = m; atualizarInterface(); }
+    if(m && !mesesDisponiveis.includes(m)) { 
+        mesesDisponiveis.push(m); 
+        mesesDisponiveis.sort(); 
+        mesSelecionado = m; 
+        atualizarInterface(); 
+    }
 }
 
 function renderizarGrafico(dados) {
@@ -400,23 +422,58 @@ function renderizarGrafico(dados) {
     });
 }
 
-window.onload = function() {
-    const btnLogin = document.getElementById('btnEntrarLogin') || document.querySelector('#telaLogin button') || document.querySelector('button');
+// --- EVENTOS E INICIALIZAÇÃO CORRIGIDA ---
+
+function vincularFormularioLogin() {
+    // Intercepta o Submit do Form no HTML para evitar o reload involuntário
+    const loginForm = document.getElementById('loginForm') || document.querySelector('#telaLogin form');
+    if (loginForm) {
+        loginForm.onsubmit = function(e) {
+            e.preventDefault();
+            executarLogin();
+        };
+    }
+
+    // Vincula o clique do botão de login de forma isolada
+    const btnLogin = document.getElementById('btnEntrarLogin');
     if (btnLogin) {
         btnLogin.onclick = function(e) {
             if(e && typeof e.preventDefault === 'function') e.preventDefault();
             executarLogin();
         };
     }
+}
 
+window.onload = async function() {
+    // 1. Vincula manipuladores de login
+    vincularFormularioLogin();
+
+    // 2. Vincula formulários e entradas
     document.getElementById('gastoForm')?.addEventListener('submit', salvarGasto);
     const btnSalvar = document.getElementById('btnSalvarGasto');
     if (btnSalvar) { btnSalvar.onclick = salvarGasto; }
     document.getElementById('tipoContaSelect')?.addEventListener('change', alternarCamposTipo);
     
+    // 3. Validação e restauração de sessão do LocalStorage
     const sessao = localStorage.getItem('sessao_usuario');
-    if(sessao) { 
-        usuarioLogado = JSON.parse(sessao); 
-        entrarNoPainel(); 
+    if (sessao) { 
+        try {
+            usuarioLogado = JSON.parse(sessao);
+            
+            // Checa com a API do Supabase se o token armazenado ainda é válido
+            if (bancoSupabase) {
+                const { data: { session }, error } = await bancoSupabase.auth.getSession();
+                if (error || !session) {
+                    // Token expirado: limpa a sessão local e força permanência na tela de login
+                    localStorage.removeItem('sessao_usuario');
+                    usuarioLogado = null;
+                    return;
+                }
+            }
+            entrarNoPainel();
+        } catch (e) {
+            localStorage.removeItem('sessao_usuario');
+            usuarioLogado = null;
+        }
     }
 };

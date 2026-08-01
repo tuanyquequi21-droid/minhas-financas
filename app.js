@@ -8,6 +8,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // ======// =========================================================================
 
 // --- CONFIGURAÇÃO E INICIALIZAÇÃO DO SUPABASE ---
+// --- CONFIGURAÇÃO E INICIALIZAÇÃO DO SUPABASE ---
 let bancoSupabase = null;
 try {
     if (SUPABASE_URL && SUPABASE_KEY && !SUPABASE_URL.includes("sua-url-aqui")) {

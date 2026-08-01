@@ -121,11 +121,6 @@ async function salvarGasto(e) {
         for (let i = 0; i < qtd; i++) {
             let d = new Date(dataBase); d.setMonth(dataBase.getMonth() + i);
             novosGastos.push({
-<<<<<<< HEAD
-                id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
-                desc: `${desc} (${i + 1}/${qtd})`, categoria: categoria, valor: val,
-                vencimento: d.toISOString().split('T')[0], eh_familiar: ehFamiliar, pago: false, tipo: 'parcelado'
-=======
                 id_grupo: idGrupo, 
                 usuario_dono: usuarioLogado.email,
                 desc: `${desc} (${i + 1}/${qtd})`, 
@@ -135,17 +130,12 @@ async function salvarGasto(e) {
                 eh_familiar: ehFamiliar, 
                 pago: false, 
                 tipo: 'parcelado'
->>>>>>> 0b68746 (atualizando app)
             });
         }
     } else {
         const val = parseFloat(document.getElementById('valorInput').value) || 0;
         if(val <= 0) { alert("Insira um valor válido para o registro."); return; }
         novosGastos.push({
-<<<<<<< HEAD
-            id_grupo: idGrupo, usuario_dono: usuarioLogado.email,
-            desc: desc, categoria: categoria, valor: val, vencimento: vencimentoOriginal, eh_familiar: ehFamiliar, pago: false, tipo: tipoConta
-=======
             id_grupo: idGrupo, 
             usuario_dono: usuarioLogado.email,
             desc: desc, 
@@ -155,7 +145,6 @@ async function salvarGasto(e) {
             eh_familiar: ehFamiliar, 
             pago: false, 
             tipo: tipoConta
->>>>>>> 0b68746 (atualizando app)
         });
     }
 
@@ -198,6 +187,41 @@ function atualizarInterface() {
         };
     }
 
+    // 🔄 LÓGICA DE PROJEÇÃO DE GASTOS FIXOS PARA OS PRÓXIMOS MESES
+    let listaGastosProcessada = [...gastos];
+    
+    // Filtra todos os gastos fixos originais
+    const gastosFixos = gastos.filter(g => g.tipo === 'fixo');
+
+    gastosFixos.forEach(gf => {
+        const mesOrigem = gf.vencimento ? gf.vencimento.substring(0, 7) : '';
+        const estaEncerrado = gf.encerrado || (gf.desc && gf.desc.includes("[QUITADO]"));
+
+        // Se a conta fixo é de um mês anterior ou igual ao selecionado e NÃO está encerrada
+        if (mesOrigem && mesOrigem <= mesSelecionado && !estaEncerrado) {
+            // Verifica se já existe um registro real deste fixo no mês selecionado
+            const jaExisteNoMes = gastos.some(g => 
+                g.id_grupo === gf.id_grupo && 
+                g.vencimento && 
+                g.vencimento.startsWith(mesSelecionado)
+            );
+
+            // Se não existe registro para o mês selecionado, criamos um registro "projetado" para exibição
+            if (!jaExisteNoMes && mesOrigem !== mesSelecionado) {
+                const diaVencimento = gf.vencimento.split('-')[2] || '01';
+                const dataProjetada = `${mesSelecionado}-${diaVencimento}`;
+
+                listaGastosProcessada.push({
+                    ...gf,
+                    id: `virtual_${gf.id}_${mesSelecionado}`, // ID temporário para o mês
+                    vencimento: dataProjetada,
+                    pago: false, // Começa como não pago no novo mês
+                    ehVirtual: true // Marcador para saber que é uma projeção
+                });
+            }
+        }
+    });
+
     let totalFamiliar = 0;
     let meusGastosAPagar = 0;
     let meusGastosJaPagos = 0; 
@@ -206,12 +230,11 @@ function atualizarInterface() {
     const tbody = document.getElementById('tabelaCorpo');
     if(tbody) tbody.innerHTML = '';
 
-    gastos.forEach(g => {
+    listaGastosProcessada.forEach(g => {
         if(g.vencimento && g.vencimento.startsWith(mesSelecionado)) {
             const visivel = (g.usuario_dono === emailU) || g.eh_familiar;
             if(visivel) {
-                // Checa se foi quitado pela marcação do texto
-                const estaEncerrado = g.desc && g.desc.includes("[QUITADO]");
+                const estaEncerrado = g.encerrado || (g.desc && g.desc.includes("[QUITADO]"));
 
                 if (!estaEncerrado) {
                     if(g.eh_familiar) {
@@ -239,19 +262,23 @@ function atualizarInterface() {
                     
                     const textoPagamento = g.pago && g.data_pagamento ? `<br><small style="color:var(--success); font-weight:normal; text-decoration:none; display:inline-block;">✓ Pago em: ${g.data_pagamento.split('-').reverse().join('/')}</small>` : '';
                     const textoEncerrado = estaEncerrado ? `<br><small style="color:#f43f5e; font-weight:bold; text-decoration:none;">🔒 CONTA ENCERRADA</small>` : '';
-                    
+                    const tagFixo = g.tipo === 'fixo' ? ` <small style="color:#818cf8;">(Fixo)</small>` : '';
+
                     const iconeBotao = g.pago ? '↩' : '✓';
                     const corBotao = g.pago ? 'var(--text-muted)' : 'var(--success)';
 
+                    // Passamos o parâmetro ehVirtual para tratar cliques em itens projetados
+                    const paramVirtual = g.ehVirtual ? 'true' : 'false';
+
                     tr.innerHTML = `
-                        <td data-label="Descrição"><b>${g.desc}</b>${textoPagamento}${textoEncerrado}</td>
+                        <td data-label="Descrição"><b>${g.desc}</b>${tagFixo}${textoPagamento}${textoEncerrado}</td>
                         <td data-label="Categoria">${g.categoria}</td>
                         <td data-label="Vencimento">${g.vencimento.split('-').reverse().join('/')}</td>
                         <td data-label="Valor">R$ ${g.valor.toFixed(2)}</td>
                         <td style="text-align:center; text-decoration:none !important;">
-                            ${!estaEncerrado ? `<button title="Marcar como Pago" style="background:${corBotao}; color:#0f172a; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; font-weight:bold; cursor:pointer;" onclick="alternarStatusPago('${g.id}', ${g.pago})">${iconeBotao}</button>` : ''}
-                            ${!estaEncerrado ? `<button title="Encerrar/Quitar Conta" style="background:#f43f5e; color:white; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="encerrarContaDefinitivo('${g.id}', '${g.desc}')">🔒</button>` : ''}
-                            <button title="Excluir" style="background:var(--danger); color:white; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="deletarGasto('${g.id}', '${g.id_grupo}', '${g.tipo}')">X</button>
+                            ${!estaEncerrado ? `<button title="Marcar como Pago" style="background:${corBotao}; color:#0f172a; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; font-weight:bold; cursor:pointer;" onclick="alternarStatusPago('${g.id}', ${g.pago}, ${paramVirtual}, '${g.id_grupo}')">${iconeBotao}</button>` : ''}
+                            ${!estaEncerrado ? `<button title="Encerrar/Quitar Conta Definitivamente" style="background:#f43f5e; color:white; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="encerrarContaDefinitivo('${g.id}', '${g.desc}', ${paramVirtual}, '${g.id_grupo}')">🔒</button>` : ''}
+                            <button title="Excluir" style="background:var(--danger); color:white; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="deletarGasto('${g.id}', '${g.id_grupo}', '${g.tipo}', ${paramVirtual})">X</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -260,7 +287,7 @@ function atualizarInterface() {
         }
     });
 
-    const rSal = salarios[salKey] || 0;
+    const rSal = salarios[salKey] || 0; 
     
     const dFam = document.getElementById('dashFamiliar');
     const dPag = document.getElementById('dashAPagar');
@@ -271,57 +298,87 @@ function atualizarInterface() {
     if(dPag) dPag.innerText = `R$ ${meusGastosAPagar.toFixed(2)}`;
     if(dJaPago) dJaPago.innerText = `R$ ${meusGastosJaPagos.toFixed(2)}`;
     
-    const saldoRealRestante = rSal - (meusGastosAPagar + meusGastosJaPagos + totalFamiliar);
-    if(dSal) dSal.innerText = `R$ ${saldoRealRestante.toFixed(2)}`;
+    const saldoCalculado = rSal - meusGastosJaPagos;
+    if(dSal) dSal.innerText = `R$ ${saldoCalculado.toFixed(2)}`;
     
     renderizarGrafico(resumoGrafico);
 }
 
-async function alternarStatusPago(id, status) {
+async function alternarStatusPago(id, status, ehVirtual = false, idGrupo = null) {
     if(!bancoSupabase) return;
     const dataAtual = !status ? new Date().toISOString().split('T')[0] : null;
+
     try { 
-        let dadosAtualizar = { pago: !status };
-        if (gastos.length > 0 && 'data_pagamento' in gastos[0]) {
-            dadosAtualizar.data_pagamento = dataAtual;
+        if (ehVirtual) {
+            // Se for um item virtual, salvamos no banco como um registro real do mês ativo
+            const gastoOriginal = gastos.find(g => g.id_grupo === idGrupo);
+            if (!gastoOriginal) return;
+
+            const diaVencimento = gastoOriginal.vencimento ? gastoOriginal.vencimento.split('-')[2] : '01';
+            const novoGastoReal = {
+                id_grupo: gastoOriginal.id_grupo,
+                usuario_dono: usuarioLogado.email,
+                desc: gastoOriginal.desc,
+                categoria: gastoOriginal.categoria,
+                valor: gastoOriginal.valor,
+                vencimento: `${mesSelecionado}-${diaVencimento}`,
+                eh_familiar: gastoOriginal.eh_familiar,
+                pago: true,
+                tipo: 'fixo',
+                data_pagamento: dataAtual
+            };
+
+            await bancoSupabase.from('gastos').insert([novoGastoReal]);
+        } else {
+            let dadosAtualizar = { pago: !status };
+            if (gastos.length > 0 && 'data_pagamento' in gastos[0]) {
+                dadosAtualizar.data_pagamento = dataAtual;
+            }
+            await bancoSupabase.from('gastos').update(dadosAtualizar).eq('id', id); 
         }
-        await bancoSupabase.from('gastos').update(dadosAtualizar).eq('id', id); 
         await carregarDadosNuvem(); 
-    } catch(e){}
+    } catch(e){
+        console.error("Erro ao alterar status de pago:", e);
+    }
 }
 
-// 🔥 CORRIGIDO: ENCERRA A CONTA USANDO APENAS A COLUNA 'desc' E 'pago' (SEM USAR A COLUNA 'encerrado')
-async function encerrarContaDefinitivo(id, descricaoAntiga) {
+async function encerrarContaDefinitivo(id, descricaoAntiga, ehVirtual = false, idGrupo = null) {
     if(!bancoSupabase) return;
-    if(!confirm(`Deseja encerrar e quitar em definitivo a conta "${descricaoAntiga}"? Ela sairá dos cálculos ativos.`)) return;
+    if(!confirm(`Deseja encerrar e quitar em definitivo a conta "${descricaoAntiga}"? Ela deixará de se repetir nos próximos meses.`)) return;
     
     try {
-        const dataAtual = new Date().toISOString().split('T')[0];
-        let dadosAtualizar = { 
-            desc: descricaoAntiga + " [QUITADO]",
-            pago: true
-        };
-        
-        if (gastos.length > 0 && 'data_pagamento' in gastos[0]) {
-            dadosAtualizar.data_pagamento = dataAtual;
+        let targetId = id;
+
+        // Se for um item virtual, encerramos o registro original da conta fixo
+        if (ehVirtual) {
+            const gastoOriginal = gastos.find(g => g.id_grupo === idGrupo);
+            if (gastoOriginal) targetId = gastoOriginal.id;
         }
 
-        const { error } = await bancoSupabase.from('gastos').update(dadosAtualizar).eq('id', id);
-        if (error) {
-            alert("Erro ao encerrar conta: " + error.message);
-            return;
+        let dadosAtualizar = { desc: descricaoAntiga.replace(" (Fixo)", "") + " [QUITADO]", pago: true };
+        
+        if (gastos.length > 0 && 'encerrado' in gastos[0]) {
+            dadosAtualizar.encerrado = true;
         }
+
+        await bancoSupabase.from('gastos').update(dadosAtualizar).eq('id', targetId);
         await carregarDadosNuvem();
     } catch(e) {
         console.error("Erro ao encerrar conta:", e);
     }
 }
 
-async function deletarGasto(id, idGrupo, tipo) {
+async function deletarGasto(id, idGrupo, tipo, ehVirtual = false) {
     if(!bancoSupabase) return;
     try {
-        if(tipo === 'parcelado') await bancoSupabase.from('gastos').delete().eq('id_grupo', idGrupo);
-        else await bancoSupabase.from('gastos').delete().eq('id', id);
+        if (ehVirtual) {
+            // Se for virtual e o usuário deletar, exclui o registro fixo original
+            await bancoSupabase.from('gastos').delete().eq('id_grupo', idGrupo);
+        } else if(tipo === 'parcelado') {
+            await bancoSupabase.from('gastos').delete().eq('id_grupo', idGrupo);
+        } else {
+            await bancoSupabase.from('gastos').delete().eq('id', id);
+        }
         await carregarDadosNuvem();
     } catch(e){}
 }

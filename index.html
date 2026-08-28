@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle Financeiro</title>
-    <!-- Estilo Externo -->
-    <link rel="stylesheet" href="style.css?v=1.0">
-    <!-- SDK Oficial Supabase -->
+    <link rel="stylesheet" href="style.css?v=2.0">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Biblioteca do Gráfico -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -55,10 +55,20 @@
                 </div>
             </div>
 
+            <!-- GRÁFICO DE DESPESAS POR CATEGORIA -->
+            <div class="form-card" style="margin-bottom: 25px;">
+                <h3>Resumo Por Categoria</h3>
+                <div style="max-height: 250px; display: flex; justify-content: center;">
+                    <canvas id="graficoCategorias"></canvas>
+                </div>
+            </div>
+
             <!-- FORMULÁRIO DE CADASTRO -->
             <div class="form-card">
-                <h3>Cadastrar Movimentação</h3>
+                <h3 id="formTitulo">Cadastrar Movimentação</h3>
                 <form id="formCadastro" onsubmit="salvarLancamento(event)">
+                    <input type="hidden" id="editId">
+
                     <div class="row">
                         <button type="button" id="btnSaida" class="btn-tipo active" onclick="selecionarTipo('saida')">🔴 Saída / Despesa</button>
                         <button type="button" id="btnEntrada" class="btn-tipo" onclick="selecionarTipo('entrada')">🟢 Entrada / Receita</button>
@@ -82,7 +92,7 @@
                             </select>
                         </div>
                         <div class="col">
-                            <label>Vencimento</label>
+                            <label>Vencimento / Calendário</label>
                             <input type="date" id="cadVencimento" required>
                         </div>
                     </div>
@@ -101,13 +111,33 @@
                         <input type="number" id="cadTotalParcelas" min="2" max="72" value="2">
                     </div>
 
+                    <!-- CONTA EM CONJUNTO -->
+                    <div class="form-group" style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 6px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #fff;">
+                            <input type="checkbox" id="cadEmConjunto" onchange="alternarCampoConjunto()" style="width: auto;"> 
+                            <span>Conta em conjunto?</span>
+                        </label>
+                        <div id="boxCompartilhar" style="display: none; margin-top: 10px;">
+                            <label>Compartilhar com:</label>
+                            <select id="cadUsuarioCompartilhar"></select>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label>Valor (R$)</label>
                         <input type="number" id="cadValor" step="0.01" placeholder="0,00" required>
                     </div>
 
-                    <button type="submit" class="btn-primary full-width">Salvar Lançamento</button>
+                    <div class="row">
+                        <button type="submit" class="btn-primary" id="btnSalvar">Salvar Lançamento</button>
+                        <button type="button" class="btn-secondary" id="btnCancelarEdit" onclick="limparFormulario()" style="display: none;">Cancelar</button>
+                    </div>
                 </form>
+            </div>
+
+            <!-- BARRA DE PESQUISA -->
+            <div class="form-group" style="margin-bottom: 15px;">
+                <input type="text" id="campoBusca" placeholder="🔍 Pesquisar por descrição ou categoria..." oninput="renderizarDados()">
             </div>
 
             <!-- TABELA -->
@@ -127,7 +157,6 @@
         </div>
     </div>
 
-    <!-- Script com parâmetro de versão contra cache -->
-    <script src="app.js?v=1.0"></script>
+    <script src="app.js?v=2.0"></script>
 </body>
 </html>

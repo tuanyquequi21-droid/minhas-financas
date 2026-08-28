@@ -1,8 +1,48 @@
-// Armazenamento local e instância global do gráfico
+// --- 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE ---
+// Insira a URL e a Key pública do seu projeto Supabase abaixo se ainda não estiverem configuradas globalmente:
+const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabase.co'; 
+const SUPABASE_KEY = 'sb_publishable_WSsAqx4AVJs7LwYlhDiqng_dqCgG3at';
+
+let supabaseClient = null;
+if (typeof supabase !== 'undefined' && SUPABASE_URL !== 'SUA_SUPABASE_URL_AQUI') {
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
+
 let listaRegistros = [];
 let graficoInstancia = null;
 
-// --- NAVEGAÇÃO ENTRE ABAS ---
+// --- 2. BUSCAR DADOS DO BANCO DE DADOS (SUPABASE) ---
+async function carregarDadosDoBanco() {
+    // Se o cliente Supabase estiver inicializado globalmente ou via script
+    const client = supabaseClient || (typeof supabase !== 'undefined' ? supabase : null);
+    
+    if (!client) {
+        console.warn("Cliente Supabase não encontrado. Verifique as chaves ou o script do Supabase no HTML.");
+        return;
+    }
+
+    try {
+        // Busca todos os registros da tabela 'transacoes' (ou o nome da sua tabela)
+        const { data, error } = await client
+            .from('transacoes')
+            .select('*')
+            .order('vencimento', { ascending: true });
+
+        if (error) {
+            console.error("Erro ao buscar dados do Supabase:", error);
+            return;
+        }
+
+        if (data) {
+            listaRegistros = data;
+            renderizarTabela();
+        }
+    } catch (err) {
+        console.error("Falha na comunicação com o banco de dados:", err);
+    }
+}
+
+// --- 3. NAVEGAÇÃO ENTRE ABAS ---
 function mudarAba(nomeAba, botaoClicado) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn-top').forEach(el => el.classList.remove('active'));
@@ -18,14 +58,13 @@ function mudarAba(nomeAba, botaoClicado) {
     }
 }
 
-// --- SELEÇÃO DE TIPO (ENTRADA OU SAÍDA) ---
+// --- 4. CONTROLE E TIPO DE LANÇAMENTO ---
 function selecionarTipoForm(tipo) {
     document.getElementById('tipoLancamento').value = tipo;
     document.getElementById('btnTipoSaida').className = tipo === 'saida' ? 'type-btn active-saida' : 'type-btn';
     document.getElementById('btnTipoEntrada').className = tipo === 'entrada' ? 'type-btn active-entrada' : 'type-btn';
 }
 
-// --- CONTROLE DA EDIÇÃO INLINE ---
 function abrirEdicaoInline(id, desc, categoria, valor, vencimento, tipo) {
     document.getElementById('editIdInline').value = id;
     document.getElementById('editDescInline').value = desc;
@@ -49,7 +88,7 @@ function fecharEdicaoInline() {
     document.getElementById('painelEdicaoInline').style.display = 'none';
 }
 
-// --- SALVAR NOVO REGISTRO ---
+// --- 5. INSERIR NOVO REGISTRO NO BANCO ---
 async function salvarGasto() {
     const desc = document.getElementById('desc')?.value;
     const categoria = document.getElementById('categoria')?.value;
@@ -58,12 +97,11 @@ async function salvarGasto() {
     const tipo = document.getElementById('tipoLancamento')?.value || 'saida';
 
     if (!desc || isNaN(valor) || !vencimento) {
-        alert("Por favor, preencha a descrição, o valor e a data de vencimento.");
+        alert("Por favor, preencha a descrição, o valor e o vencimento.");
         return;
     }
 
     const novoObjeto = {
-        id: Date.now().toString(),
         descricao: desc,
         categoria: categoria,
         vencimento: vencimento,
@@ -71,18 +109,25 @@ async function salvarGasto() {
         tipo: tipo
     };
 
-    listaRegistros.push(novoObjeto);
-    
-    // Atualiza tabela e limpa o formulário
-    document.getElementById('gastoForm').reset();
+    const client = supabaseClient || (typeof supabase !== 'undefined' ? supabase : null);
+    if (client) {
+        const { error } = await client.from('transacoes').insert([novoObjeto]);
+        if (error) {
+            alert("Erro ao salvar no banco de dados: " + error.message);
+            return;
+        }
+    }
+
+    document.getElementById('gastoForm')?.reset();
     selecionarTipoForm('saida');
     
-    renderizarTabela();
+    // Recarrega do banco e volta para a aba principal
+    await carregarDadosDoBanco();
     mudarAba('Resumo', document.querySelector('.tab-btn-top'));
 }
 
-// --- SALVAR ALTERAÇÃO INLINE ---
-function salvarEdicaoInline() {
+// --- 6. ATUALIZAR REGISTRO NO BANCO ---
+async function salvarEdicaoInline() {
     const id = document.getElementById('editIdInline').value;
     const desc = document.getElementById('editDescInline').value;
     const categoria = document.getElementById('editCategoriaInline').value;
@@ -90,24 +135,44 @@ function salvarEdicaoInline() {
     const vencimento = document.getElementById('editVencimentoInline').value;
     const tipo = document.getElementById('editTipoInline').value;
 
-    const index = listaRegistros.findIndex(item => item.id == id);
-    if (index !== -1) {
-        listaRegistros[index] = { id, descricao: desc, categoria, valor, vencimento, tipo };
+    const dadosAtualizados = {
+        descricao: desc,
+        categoria: categoria,
+        valor: valor,
+        vencimento: vencimento,
+        tipo: tipo
+    };
+
+    const client = supabaseClient || (typeof supabase !== 'undefined' ? supabase : null);
+    if (client) {
+        const { error } = await client.from('transacoes').update(dadosAtualizados).eq('id', id);
+        if (error) {
+            alert("Erro ao atualizar no banco de dados: " + error.message);
+            return;
+        }
     }
 
     fecharEdicaoInline();
-    renderizarTabela();
+    await carregarDadosDoBanco();
 }
 
-// --- EXCLUSÃO DE REGISTRO ---
-function excluirRegistro(id) {
-    if (confirm("Tem certeza de que deseja remover este lançamento?")) {
-        listaRegistros = listaRegistros.filter(item => item.id != id);
-        renderizarTabela();
+// --- 7. EXCLUIR REGISTRO NO BANCO ---
+async function excluirRegistro(id) {
+    if (!confirm("Tem certeza de que deseja remover este lançamento?")) return;
+
+    const client = supabaseClient || (typeof supabase !== 'undefined' ? supabase : null);
+    if (client) {
+        const { error } = await client.from('transacoes').delete().eq('id', id);
+        if (error) {
+            alert("Erro ao excluir do banco de dados: " + error.message);
+            return;
+        }
     }
+
+    await carregarDadosDoBanco();
 }
 
-// --- RENDERIZAÇÃO DA TABELA E TOTAIS ---
+// --- 8. RENDERIZAÇÃO DA TABELA ---
 function renderizarTabela() {
     const tbody = document.getElementById('tabelaCorpo');
     if (!tbody) return;
@@ -118,8 +183,8 @@ function renderizarTabela() {
     let totalSaidas = 0;
 
     listaRegistros.forEach(item => {
-        if (item.tipo === 'entrada') totalEntradas += item.valor;
-        else totalSaidas += item.valor;
+        if (item.tipo === 'entrada') totalEntradas += Number(item.valor);
+        else totalSaidas += Number(item.valor);
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -131,7 +196,7 @@ function renderizarTabela() {
             <td data-label="Descrição">${item.descricao}</td>
             <td data-label="Categoria">${item.categoria}</td>
             <td data-label="Vencimento">${item.vencimento}</td>
-            <td data-label="Valor">R$ ${item.valor.toFixed(2)}</td>
+            <td data-label="Valor">R$ ${Number(item.valor).toFixed(2)}</td>
             <td data-label="Ações">
                 <button class="btn-acao" onclick="abrirEdicaoInline('${item.id}', '${item.descricao}', '${item.categoria}', ${item.valor}, '${item.vencimento}', '${item.tipo}')">✏️ Editar</button>
                 <button class="btn-acao" style="color:var(--danger);" onclick="excluirRegistro('${item.id}')">🗑️ Excluir</button>
@@ -140,13 +205,12 @@ function renderizarTabela() {
         tbody.appendChild(tr);
     });
 
-    // Atualiza os cards da Dashboard
     document.getElementById('dashEntradas').innerText = `R$ ${totalEntradas.toFixed(2)}`;
     document.getElementById('dashSaidas').innerText = `R$ ${totalSaidas.toFixed(2)}`;
     document.getElementById('dashSaldo').innerText = `R$ ${(totalEntradas - totalSaidas).toFixed(2)}`;
 }
 
-// --- CALENDÁRIO / AGENDA COMPLETO ---
+// --- 9. RENDERIZAÇÃO DA AGENDA ---
 function renderizarAgenda() {
     const container = document.getElementById('calendarioAgenda');
     if (!container) return;
@@ -154,7 +218,6 @@ function renderizarAgenda() {
     container.innerHTML = '';
     const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     
-    // Cabeçalho dos dias
     diasSemana.forEach(dia => {
         const div = document.createElement('div');
         div.className = 'dia-header';
@@ -169,14 +232,12 @@ function renderizarAgenda() {
     const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
     const totalDiasMes = new Date(ano, mes + 1, 0).getDate();
 
-    // Espaços vazios do início
     for (let p = 0; p < primeiroDiaSemana; p++) {
         const vazio = document.createElement('div');
         vazio.style.visibility = 'hidden';
         container.appendChild(vazio);
     }
 
-    // Preenchimento dos dias
     for (let i = 1; i <= totalDiasMes; i++) {
         const cardDia = document.createElement('div');
         cardDia.className = 'dia-card';
@@ -191,7 +252,7 @@ function renderizarAgenda() {
     }
 }
 
-// --- GRÁFICO COM LEGENDAS FIXAS NO RODAPÉ ---
+// --- 10. RENDERIZAÇÃO DO GRÁFICO ---
 function renderizarGrafico() {
     const canvas = document.getElementById('graficoCategorias');
     if (!canvas) return;
@@ -199,11 +260,10 @@ function renderizarGrafico() {
     const ctx = canvas.getContext('2d');
     if (graficoInstancia) graficoInstancia.destroy();
 
-    // Consolida valores por categoria
     const categoriasValores = {};
     listaRegistros.forEach(item => {
         if (item.tipo === 'saida') {
-            categoriasValores[item.categoria] = (categoriasValores[item.categoria] || 0) + item.valor;
+            categoriasValores[item.categoria] = (categoriasValores[item.categoria] || 0) + Number(item.valor);
         }
     });
 
@@ -225,7 +285,7 @@ function renderizarGrafico() {
             plugins: {
                 legend: {
                     display: true,
-                    position: 'bottom', // Legenda na parte inferior no Mobile
+                    position: 'bottom',
                     labels: {
                         color: '#f8fafc',
                         padding: 12,
@@ -237,13 +297,13 @@ function renderizarGrafico() {
     });
 }
 
-// --- INICIALIZAÇÃO DA INTERFACE ---
-window.addEventListener('DOMContentLoaded', () => {
-    // Exibe a tela após o carregamento
+// --- INICIALIZAÇÃO ---
+window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('telaLogin').style.display = 'none';
     document.getElementById('appContainer').style.display = 'block';
     
-    renderizarTabela();
+    // Busca as informações do seu Banco de Dados assim que entra no app
+    await carregarDadosDoBanco();
 });
 
 function filtrarTabela() {

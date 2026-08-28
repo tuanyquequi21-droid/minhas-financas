@@ -107,25 +107,16 @@ function selecionarTipo(tipo) {
     document.getElementById('btnSaida').classList.toggle('active', tipo === 'saida');
 }
 
-// SALVAR LANÇAMENTO
+// SALVAR LANÇAMENTO (CORRIGIDO: Sempre salva no ID do usuário logado)
 async function salvarTransacao(e) {
     e.preventDefault();
 
-    const targetUsername = document.getElementById('userInputTarget').value.trim().toLowerCase();
-    let targetUserId = usuarioLogado.id;
-
-    if (targetUsername && targetUsername !== usernameAtual) {
-        const { data: profileTarget, error: perfError } = await sb
-            .from('profiles')
-            .select('id')
-            .eq('username', targetUsername)
-            .single();
-
-        if (perfError || !profileTarget) {
-            return alert(`O usuário "@${targetUsername}" não foi encontrado.`);
-        }
-        targetUserId = profileTarget.id;
+    if (!usuarioLogado) {
+        return alert("Sessão expirada. Faça login novamente.");
     }
+
+    // Força o ID do usuário atualmente autenticado no sistema
+    const targetUserId = usuarioLogado.id;
 
     const descBase = document.getElementById('desc').value;
     const valorTotal = parseFloat(document.getElementById('valor').value);
@@ -197,11 +188,10 @@ async function salvarTransacao(e) {
     }
 }
 
-// CARREGAR TRANSAÇÕES (FILTRADO POR USUÁRIO LOGADO)
+// CARREGAR TRANSAÇÕES (CORRIGIDO: Filtra estritamente por ID)
 async function carregarTransacoes() {
     if (!usuarioLogado) return;
 
-    // Adicionado o filtro .eq('user_id', usuarioLogado.id)
     const { data, error } = await sb
         .from('transacoes')
         .select('*')
@@ -212,7 +202,6 @@ async function carregarTransacoes() {
         transacoesCache = data;
         popularFiltroMeses();
 
-        // Obtém o mês/ano local atual no formato YYYY-MM
         const agora = new Date();
         const mesAtualStr = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
         

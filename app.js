@@ -233,23 +233,27 @@ function popularFiltroMeses() {
     if (valorAtual) select.value = valorAtual;
 }
 
-// RENDERIZAÇÃO DE DADOS (PONTO 1: PERMITE CONSULTAR QUALQUER MÊS FUTURO/PASSADO)
+// RENDERIZAÇÃO DE DADOS (DASHBOARD E HISTÓRICO COMPLETO)
 function renderizarDados() {
     let totEntradas = 0, totSaidas = 0;
     const catMap = {};
-    const tbody = document.getElementById('tabelaRegistros');
-    let tabelaHtml = '';
+    
+    const tbodyDashboard = document.getElementById('tabelaRegistros');
+    const tbodyHistorico = document.getElementById('tabelaHistoricoCorpo');
+    
+    let htmlDashboard = '';
+    let htmlHistorico = '';
 
-    // Lê o mês selecionado no filtro de Mês do Dashboard (Formato YYYY-MM)
+    // 1. FILTRO E PROCESSAMENTO DO DASHBOARD
     const inputMesDash = document.getElementById('filtroMesDashboard');
-    const mesSelecionado = inputMesDash ? inputMesDash.value : '';
+    const mesDashSelecionado = inputMesDash ? inputMesDash.value : '';
 
-    const registrosFiltrados = transacoesCache.filter(t => {
-        if (!mesSelecionado) return true;
-        return t.data && t.data.startsWith(mesSelecionado);
+    const registrosDashboard = transacoesCache.filter(t => {
+        if (!mesDashSelecionado) return true;
+        return t.data && t.data.startsWith(mesDashSelecionado);
     });
 
-    registrosFiltrados.forEach(t => {
+    registrosDashboard.forEach(t => {
         if (t.tipo === 'entrada') {
             totEntradas += t.valor;
         } else {
@@ -257,37 +261,27 @@ function renderizarDados() {
             catMap[t.categoria] = (catMap[t.categoria] || 0) + t.valor;
         }
 
-        let badgeTipo = '';
-        if (t.recorrencia === 'fixo') badgeTipo = ' <small style="color:var(--text-secondary);">(Fixo)</small>';
-
-        const isQuitado = t.status === 'quitado';
-        const badgeStatusClass = isQuitado ? 'quitado' : 'pendente';
-        const textoStatus = isQuitado ? 'Quitado ✅' : 'Pendente ⏳';
-
-        tabelaHtml += `
-            <tr>
-                <td>
-                    <span class="status-badge ${badgeStatusClass}" onclick="alternarStatusQuitado('${t.id}', '${t.status}')">
-                        ${textoStatus}
-                    </span>
-                </td>
-                <td>${t.data.split('-').reverse().join('/')}</td>
-                <td>${escaparHtml(t.descricao)} ${badgeTipo}</td>
-                <td>${escaparHtml(t.categoria)}</td>
-                <td class="${t.tipo === 'entrada' ? 'txt-success' : 'txt-danger'}">${t.tipo.toUpperCase()}</td>
-                <td>R$ ${t.valor.toFixed(2)}</td>
-                <td>
-                    <div class="actions-cell">
-                        <button class="btn-icon" onclick="abrirModalEdicao('${t.id}')" title="Editar">✏️</button>
-                        <button class="btn-icon" onclick="deletarTransacao('${t.id}')" title="Excluir">🗑️</button>
-                    </div>
-                </td>
-            </tr>
-        `;
+        htmlDashboard += criarLinhaTabela(t);
     });
 
-    if (tbody) tbody.innerHTML = tabelaHtml;
+    // 2. FILTRO E PROCESSAMENTO DO HISTÓRICO COMPLETO
+    const selectMesHist = document.getElementById('filtroMes');
+    const mesHistSelecionado = selectMesHist ? selectMesHist.value : 'todos';
 
+    const registrosHistorico = transacoesCache.filter(t => {
+        if (!mesHistSelecionado || mesHistSelecionado === 'todos') return true;
+        return t.data && t.data.startsWith(mesHistSelecionado);
+    });
+
+    registrosHistorico.forEach(t => {
+        htmlHistorico += criarLinhaTabela(t);
+    });
+
+    // Atualiza as tabelas no DOM
+    if (tbodyDashboard) tbodyDashboard.innerHTML = htmlDashboard;
+    if (tbodyHistorico) tbodyHistorico.innerHTML = htmlHistorico;
+
+    // Atualiza os cards de totais do Dashboard
     document.getElementById('totalEntradas').innerText = `R$ ${totEntradas.toFixed(2)}`;
     document.getElementById('totalSaidas').innerText = `R$ ${totSaidas.toFixed(2)}`;
     document.getElementById('saldoTotal').innerText = `R$ ${(totEntradas - totSaidas).toFixed(2)}`;
@@ -296,7 +290,38 @@ function renderizarDados() {
     renderizarCalendario();
 }
 
-// CALENDÁRIO (PONTO 2: DESTACA O DIA ATUAL E HABILITA CLIQUE PARA DETALHAR OS VENCIMENTOS)
+// FUNÇÃO AUXILIAR PARA GERAR A LINHA DA TABELA
+function criarLinhaTabela(t) {
+    let badgeTipo = '';
+    if (t.recorrencia === 'fixo') badgeTipo = ' <small style="color:var(--text-secondary);">(Fixo)</small>';
+
+    const isQuitado = t.status === 'quitado';
+    const badgeStatusClass = isQuitado ? 'quitado' : 'pendente';
+    const textoStatus = isQuitado ? 'Quitado ✅' : 'Pendente ⏳';
+
+    return `
+        <tr>
+            <td>
+                <span class="status-badge ${badgeStatusClass}" onclick="alternarStatusQuitado('${t.id}', '${t.status}')">
+                    ${textoStatus}
+                </span>
+            </td>
+            <td>${t.data.split('-').reverse().join('/')}</td>
+            <td>${escaparHtml(t.descricao)} ${badgeTipo}</td>
+            <td>${escaparHtml(t.categoria)}</td>
+            <td class="${t.tipo === 'entrada' ? 'txt-success' : 'txt-danger'}">${t.tipo.toUpperCase()}</td>
+            <td>R$ ${t.valor.toFixed(2)}</td>
+            <td>
+                <div class="actions-cell">
+                    <button class="btn-icon" onclick="abrirModalEdicao('${t.id}')" title="Editar">✏️</button>
+                    <button class="btn-icon" onclick="deletarTransacao('${t.id}')" title="Excluir">🗑️</button>
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+// CALENDÁRIO
 function mudarMesCalendario(delta) {
     dataCalendarioAtual.setMonth(dataCalendarioAtual.getMonth() + delta);
     renderizarCalendario();
@@ -329,11 +354,10 @@ function renderizarCalendario() {
         const dataStr = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
         const itensDia = transacoesCache.filter(t => (t.vencimento || t.data) === dataStr);
 
-        // Verifica se é o dia de hoje para grifar em verde
         const isHoje = (dia === diaHoje && mes === mesHoje && ano === anoHoje) ? 'today' : '';
 
         let eventosHtml = '';
-        itensDia.slice(0, 2).forEach(item => { // Mostra até 2 resumos visuais
+        itensDia.slice(0, 2).forEach(item => {
             const classeTipo = item.tipo === 'entrada' ? 'entrada' : 'saida';
             eventosHtml += `
                 <div class="cal-event-item ${classeTipo}">

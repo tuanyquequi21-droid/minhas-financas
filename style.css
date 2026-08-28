@@ -22,14 +22,16 @@
 body { 
     background-color: var(--background); 
     color: var(--text); 
-    padding: 1rem; /* Diminuído para não esmagar no celular */
+    padding: 0.75rem; /* Ajustado para dar mais espaço de tela no celular */
     min-height: 100vh; 
+    overflow-x: hidden; /* Trava a rolagem horizontal do corpo da página */
 }
 
 .container { 
     max-width: 1200px; 
     margin: 0 auto; 
     display: none; 
+    width: 100%;
 } 
 
 /* TELA DE LOGIN RESPONSIVA */
@@ -43,7 +45,7 @@ body {
 .login-card { 
     background: var(--surface); 
     border: 1px solid var(--border); 
-    padding: 2rem; /* Ajustado para telas menores */
+    padding: 1.5rem; 
     border-radius: 16px; 
     width: 100%; 
     max-width: 380px; 
@@ -75,6 +77,7 @@ body {
     padding: 1.25rem; 
     box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); 
     margin-bottom: 1rem;
+    width: 100%;
 }
 
 .auth-bar { 
@@ -86,6 +89,7 @@ body {
     background: rgba(255,255,255,0.02); 
     border-radius: 12px; 
     border: 1px solid var(--border); 
+    gap: 0.5rem;
 }
 
 .user-badge { 
@@ -98,7 +102,7 @@ body {
     max-width: 180px;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis; /* Evita que o email quebre a barra */
+    text-overflow: ellipsis;
 }
 
 header { 
@@ -106,21 +110,24 @@ header {
     justify-content: space-between; 
     align-items: flex-start; 
     margin-bottom: 1.5rem; 
-    flex-direction: column; /* No celular fica um embaixo do outro */
+    flex-direction: column; 
     gap: 1rem; 
 }
 
-/* Ajuste do cabeçalho para telas grandes */
 @media(min-width: 768px) {
     header { flex-direction: row; align-items: center; }
 }
 
 h1 { 
-    font-size: 1.75rem; 
+    font-size: 1.5rem; 
     background: linear-gradient(to right, #a5b4fc, #6366f1); 
     -webkit-background-clip: text; 
     background-clip: text;
     -webkit-text-fill-color: transparent; 
+}
+
+@media(min-width: 768px) {
+    h1 { font-size: 1.75rem; }
 }
 
 .input-premium { 
@@ -139,12 +146,13 @@ h1 {
     border-color: var(--primary);
 }
 
-/* NAVEGAÇÃO POR MESES (SCROLL MACIO NO CELULAR) */
+/* NAVEGAÇÃO POR MESES */
 .tabs-wrapper { 
     display: flex; 
     align-items: center; 
     gap: 0.5rem; 
     margin-bottom: 1.5rem; 
+    width: 100%;
 }
 
 .tabs-container { 
@@ -152,9 +160,10 @@ h1 {
     gap: 0.5rem; 
     overflow-x: auto; 
     width: 100%; 
-    scrollbar-width: none; /* Esconde barra no Firefox */
+    scrollbar-width: none; 
+    -webkit-overflow-scrolling: touch;
 }
-.tabs-container::-webkit-scrollbar { display: none; } /* Esconde barra no Chrome/Safari */
+.tabs-container::-webkit-scrollbar { display: none; }
 
 .tab-btn { 
     background: var(--surface); 
@@ -164,7 +173,7 @@ h1 {
     border-radius: 10px; 
     cursor: pointer; 
     font-weight: 600; 
-    white-space: nowrap; /* Impede o texto do mês de quebrar linha */
+    white-space: nowrap; 
 }
 
 .tab-btn.active { 
@@ -172,14 +181,14 @@ h1 {
     color: white; 
 }
 
-/* LAYOUT PRINCIPAL: Mobile first (uma coluna) */
+/* LAYOUT PRINCIPAL */
 .main-layout { 
     display: flex;
     flex-direction: column;
     gap: 1.5rem; 
+    width: 100%;
 }
 
-/* Grid de colunas ativa apenas no computador */
 @media(min-width: 1024px) { 
     .main-layout { 
         display: grid;
@@ -187,24 +196,30 @@ h1 {
     } 
 }
 
-/* DASHBOARD: Grid inteligente (2 colunas no celular, 4 no PC) */
+/* DASHBOARD */
 .dashboard { 
     display: grid; 
     grid-template-columns: repeat(2, 1fr); 
-    gap: 1rem; 
+    gap: 0.75rem; 
     margin-bottom: 1.5rem; 
 }
 
 @media(min-width: 768px) {
-    .dashboard { grid-template-columns: repeat(4, 1fr); }
+    .dashboard { grid-template-columns: repeat(4, 1fr); gap: 1rem; }
 }
 
 .dashboard .glass-card {
     margin-bottom: 0;
-    padding: 1rem;
+    padding: 0.85rem;
 }
-.dashboard h3 { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem; }
-.dashboard p { font-size: 1.15rem; font-weight: 700; }
+.dashboard h3 { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+.dashboard p { font-size: 1rem; font-weight: 700; }
+
+@media(min-width: 480px) {
+    .dashboard .glass-card { padding: 1rem; }
+    .dashboard h3 { font-size: 0.85rem; }
+    .dashboard p { font-size: 1.15rem; }
+}
 
 /* FORMULÁRIO RESPONSIVO */
 .form-grid { 
@@ -229,20 +244,25 @@ button.btn-premium {
     width: 100%; 
 }
 
-/* TABELA ADAPTADA PARA CELULAR (Rola pro lado sem quebrar o layout) */
+/* TABELA ADAPTADA PARA CELULAR (Converte linhas em Cards) */
 .table-responsive { 
-    overflow-x: auto; 
+    width: 100%;
     border-radius: 14px; 
-    border: 1px solid var(--border); 
-    background: var(--glass); 
-    -webkit-overflow-scrolling: touch;
+    background: transparent;
+}
+
+@media(min-width: 601px) {
+    .table-responsive {
+        border: 1px solid var(--border); 
+        background: var(--glass);
+        overflow-x: auto;
+    }
 }
 
 table { 
     width: 100%; 
     border-collapse: collapse; 
     text-align: left; 
-    min-width: 600px; /* Garante que os dados fiquem legíveis na rolagem lateral */
 }
 
 th, td { 
@@ -256,6 +276,49 @@ tr.linha-paga {
     color: #a7f3d0; 
 }
 
+/* Transformação da tabela em layout de cards verticais em telas pequenas */
+@media (max-width: 600px) {
+    table, tbody, tr, td {
+        display: block;
+        width: 100%;
+    }
+
+    thead {
+        display: none; /* Esconde o cabeçalho original da tabela */
+    }
+
+    tr {
+        margin-bottom: 0.75rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.5rem 0.75rem;
+    }
+
+    td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 0.85rem;
+    }
+
+    td:last-child {
+        border-bottom: none;
+    }
+
+    /* Exibe os rótulos automaticamente no celular (se data-label estiver definido no HTML/JS) */
+    td[data-label]::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+}
+
+/* BOTÕES DE AÇÃO */
 .btn-logout { 
     background: #334155; 
     color: white; 

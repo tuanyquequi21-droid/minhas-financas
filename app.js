@@ -94,7 +94,7 @@ function selecionarTipo(tipo) {
     document.getElementById('btnSaida').classList.toggle('active', tipo === 'saida');
 }
 
-// SALVAR LANÇAMENTO (COM TRATAMENTO DE DIA 31 / ÚLTIMO DIA DO MÊS)
+// SALVAR LANÇAMENTO (TRATAMENTO DE DIA 31 / ÚLTIMO DIA DO MÊS PRESERVANDO DIA ORIGINAL)
 async function salvarTransacao(e) {
     e.preventDefault();
     
@@ -119,23 +119,30 @@ async function salvarTransacao(e) {
     const dataInicialStr = document.getElementById('data').value;
     const categoria = document.getElementById('categoria').value;
     const tipoRecorrencia = document.getElementById('recorrencia').value;
-    const numParcelas = tipoRecorrencia === 'parcelado' ? parseInt(document.getElementById('totalParcelas').value) : 1;
+    
+    let numLancamentos = 1;
+    if (tipoRecorrencia === 'parcelado') {
+        numLancamentos = parseInt(document.getElementById('totalParcelas').value) || 1;
+    } else if (tipoRecorrencia === 'fixo') {
+        numLancamentos = 12; // Gera 12 meses para contas fixas
+    }
 
     const listaParaInserir = [];
+    // Guarda o DIA ORIGINAL selecionado pelo usuário (ex: 31)
     const [anoOriginal, mesOriginal, diaOriginal] = dataInicialStr.split('-').map(Number);
 
-    for (let i = 0; i < numParcelas; i++) {
+    for (let i = 0; i < numLancamentos; i++) {
         let anoDestino = anoOriginal;
         let mesDestinoIndex = (mesOriginal - 1) + i; // Índice do mês no JS (0 a 11)
 
-        // Calcula virada de ano caso o parcelamento ultrapasse dezembro
+        // Virada de ano caso o parcelamento passe de dezembro
         anoDestino += Math.floor(mesDestinoIndex / 12);
         mesDestinoIndex = mesDestinoIndex % 12;
 
-        // Obtém o último dia útil do mês de destino
+        // Descobre o último dia do mês de destino (ex: 28 em Fev, 30 em Abr, 31 em Mai)
         const ultimoDiaDoMes = new Date(anoDestino, mesDestinoIndex + 1, 0).getDate();
 
-        // Ajusta o dia para não pular de mês (ex: 31/01 -> 28/02 -> 31/03)
+        // Sempre compara o DIA ORIGINAL (ex: 31) com o limite do mês de destino
         const diaAjustado = Math.min(diaOriginal, ultimoDiaDoMes);
 
         const mesStr = String(mesDestinoIndex + 1).padStart(2, '0');
@@ -146,8 +153,8 @@ async function salvarTransacao(e) {
         let valorFinal = valorTotal;
 
         if (tipoRecorrencia === 'parcelado') {
-            descFinal = `${descBase} (${i + 1}/${numParcelas})`;
-            valorFinal = valorTotal / numParcelas;
+            descFinal = `${descBase} (${i + 1}/${numLancamentos})`;
+            valorFinal = valorTotal / numLancamentos;
         } else if (tipoRecorrencia === 'fixo') {
             descFinal = `${descBase} 🔄`;
         }
@@ -161,8 +168,8 @@ async function salvarTransacao(e) {
             categoria: categoria,
             tipo: tipoSelecionado,
             recorrencia: tipoRecorrencia,
-            parcela_atual: i + 1,
-            total_parcelas: numParcelas,
+            parcela_atual: tipoRecorrencia === 'parcelado' ? i + 1 : 1,
+            total_parcelas: numLancamentos,
             status: 'pendente'
         });
     }

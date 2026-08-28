@@ -114,6 +114,7 @@
         <header class="app-header">
             <div class="nav-tabs-top">
                 <button class="tab-btn-top active" onclick="mudarAba('Resumo', this)">📊 Resumo</button>
+                <button class="tab-btn-top" onclick="mudarAba('Agenda', this)">📅 Agenda</button>
                 <button class="tab-btn-top" onclick="mudarAba('Novo', this)">➕ Novo Registro</button>
                 <button class="tab-btn-top" onclick="mudarAba('Grafico', this)">📈 Gráficos</button>
             </div>
@@ -174,6 +175,12 @@
                 </div>
             </div>
 
+            <div id="abaAgenda" class="tab-content">
+                <div style="background: var(--surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
+                    <div id="calendarioAgenda"></div>
+                </div>
+            </div>
+
             <div id="abaNovo" class="tab-content">
                 <div class="form-box">
                     <h3 style="margin-top:0; margin-bottom:16px; font-size:1rem;">Cadastrar Lançamento</h3>
@@ -202,7 +209,7 @@
                             <select id="tipoContaSelect">
                                 <option value="normal">À Vista / Único</option>
                                 <option value="parcelado">Parcelado</option>
-                                <option value="recorrente">Fixo Mensal</option>
+                                <option value="fixo">Fixo Mensal</option>
                             </select>
                         </div>
                         <div id="camposParcelas" style="display:none; gap:8px; margin-bottom:12px;">
@@ -260,9 +267,7 @@
 
         // Delegação de eventos global para interceptar cliques nos botões de exclusão gerados pelo app.js
         document.addEventListener('click', function(e) {
-            // Se o botão clicado contiver classes de exclusão comuns, ou texto correspondente
             if (e.target && (e.target.classList.contains('btn-excluir') || e.target.classList.contains('btn-deletar') || e.target.innerText === 'Excluir' || e.target.innerText === '❌')) {
-                // Se o app.js tiver uma função global de exclusão atrelada, damos suporte a ela aqui
                 const registroId = e.target.getAttribute('data-id');
                 if (registroId && typeof deletarRegistro === 'function') {
                     deletarRegistro(registroId);

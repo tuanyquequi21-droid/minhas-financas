@@ -2,8 +2,9 @@
 // Insira a URL e a Key pública do seu projeto Supabase abaixo se ainda não estiverem configuradas globalmente:
 const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q';
-// Alterado de 'const supabase' para 'const _supabase'
-const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Inicializa o cliente na variável global 'sb' para evitar conflito com o script da CDN
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioLogado = null;
 let usernameAtual = "";
@@ -37,17 +38,16 @@ function navegarPara(paginaId) {
     document.getElementById('sidebarOverlay').classList.remove('active');
 }
 
-// LOGIN UTILIZANDO APENAS USUÁRIO (USERNAME)
+// AUTENTICAÇÃO
 async function fazerLogin() {
     const usernameInput = document.getElementById('loginUsername').value.trim().toLowerCase();
     const password = document.getElementById('loginSenha').value;
 
     if (!usernameInput) return alert("Digite o nome de usuário.");
 
-    // Mapeamento interno para o e-mail cadastrado
     const emailFake = `${usernameInput}@sistema.local`;
 
-    const { data, error } = await supabase.auth.signInWithPassword({ 
+    const { data, error } = await sb.auth.signInWithPassword({ 
         email: emailFake, 
         password: password 
     });
@@ -60,7 +60,7 @@ async function fazerLogin() {
 }
 
 async function verificarSessao() {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await sb.auth.getUser();
     if (user) {
         const username = user.email.split('@')[0];
         iniciarSessao(user, username);
@@ -80,7 +80,7 @@ function iniciarSessao(user, username) {
 }
 
 async function deslogar() {
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
     location.reload();
 }
 
@@ -90,16 +90,15 @@ function selecionarTipo(tipo) {
     document.getElementById('btnSaida').classList.toggle('active', tipo === 'saida');
 }
 
-// SALVAR LANÇAMENTO BUSCANDO O ID DO USUÁRIO INFORMADO NO INPUT
+// SALVAR LANÇAMENTO
 async function salvarTransacao(e) {
     e.preventDefault();
     
     const targetUsername = document.getElementById('userInputTarget').value.trim().toLowerCase();
     let targetUserId = usuarioLogado.id;
 
-    // Se informou um usuário no campo de texto, busca o ID dele no banco
     if (targetUsername && targetUsername !== usernameAtual) {
-        const { data: profileTarget, error: perfError } = await supabase
+        const { data: profileTarget, error: perfError } = await sb
             .from('profiles')
             .select('id')
             .eq('username', targetUsername)
@@ -121,7 +120,7 @@ async function salvarTransacao(e) {
         tipo: tipoSelecionado
     };
 
-    const { error } = await supabase.from('transacoes').insert([novaTransacao]);
+    const { error } = await sb.from('transacoes').insert([novaTransacao]);
 
     if (error) {
         alert("Erro ao salvar: " + error.message);
@@ -136,7 +135,7 @@ async function salvarTransacao(e) {
 }
 
 async function carregarTransacoes() {
-    const { data, error } = await supabase
+    const { data, error } = await sb
         .from('transacoes')
         .select('*')
         .order('data', { ascending: false });
@@ -149,12 +148,12 @@ async function carregarTransacoes() {
 
 async function deletarTransacao(id) {
     if (confirm("Deseja excluir este registro?")) {
-        await supabase.from('transacoes').delete().eq('id', id);
+        await sb.from('transacoes').delete().eq('id', id);
         carregarTransacoes();
     }
 }
 
-// RENDERIZAÇÃO DE DADOS
+// RENDERIZAÇÃO
 function renderizarDados() {
     let totEntradas = 0, totSaidas = 0;
     const catMap = {};
@@ -231,7 +230,7 @@ function renderizarCalendario() {
     }
 }
 
-// GRÁFICO & TEMA
+// GRÁFICO E TEMA
 function desenharGrafico(dadosCategorias) {
     const ctx = document.getElementById('meuGrafico').getContext('2d');
     if (meuGrafico) meuGrafico.destroy();

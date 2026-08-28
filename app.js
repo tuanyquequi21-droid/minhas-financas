@@ -5,7 +5,8 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 let supabaseClient = null;
 
-if (typeof supabase !== 'undefined' && SUPABASE_URL !== 'https://iecdvnsvnobpxqnusitw.supabase.co') {
+// Inicialização sem trava de validação incorreta
+if (typeof supabase !== 'undefined' && SUPABASE_URL && SUPABASE_KEY) {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 

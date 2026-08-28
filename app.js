@@ -2,7 +2,7 @@
 // Insira a URL e a Key pública do seu projeto Supabase abaixo se ainda não estiverem configuradas globalmente:
 const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q';
-
+// --- 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE ---
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioLogado = null;
@@ -197,10 +197,15 @@ async function salvarTransacao(e) {
     }
 }
 
+// CARREGAR TRANSAÇÕES (FILTRADO POR USUÁRIO LOGADO)
 async function carregarTransacoes() {
+    if (!usuarioLogado) return;
+
+    // Adicionado o filtro .eq('user_id', usuarioLogado.id)
     const { data, error } = await sb
         .from('transacoes')
         .select('*')
+        .eq('user_id', usuarioLogado.id)
         .order('data', { ascending: false });
 
     if (!error && data) {
@@ -212,7 +217,7 @@ async function carregarTransacoes() {
         const mesAtualStr = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
         
         const selectFiltro = document.getElementById('filtroMes');
-        if (selectFiltro.querySelector(`option[value="${mesAtualStr}"]`)) {
+        if (selectFiltro && selectFiltro.querySelector(`option[value="${mesAtualStr}"]`)) {
             selectFiltro.value = mesAtualStr;
         }
 

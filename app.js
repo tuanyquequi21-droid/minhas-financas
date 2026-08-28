@@ -1,7 +1,7 @@
 // --- 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE ---
 // Insira a URL e a Key pública do seu projeto Supabase abaixo se ainda não estiverem configuradas globalmente:
 const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabase.co'; 
-const SUPABASE_KEY = 'sb_publishable_WSsAqx4AVJs7LwYlhDiqng_dqCgG3at';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q';
 
 let supabaseClient = null;
 if (typeof supabase !== 'undefined' && SUPABASE_URL !== 'SUA_SUPABASE_URL_AQUI') {

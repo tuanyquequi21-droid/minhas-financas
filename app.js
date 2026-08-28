@@ -4,45 +4,109 @@ const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q';
 
 let supabaseClient = null;
-if (typeof supabase !== 'undefined' && SUPABASE_URL !== 'SUA_SUPABASE_URL_AQUI') {
+
+if (typeof supabase !== 'undefined' && SUPABASE_URL !== 'https://iecdvnsvnobpxqnusitw.supabase.co') {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
 let listaRegistros = [];
 let graficoInstancia = null;
 
-// --- 2. BUSCAR DADOS DO BANCO DE DADOS (SUPABASE) ---
-async function carregarDadosDoBanco() {
-    // Se o cliente Supabase estiver inicializado globalmente ou via script
-    const client = supabaseClient || (typeof supabase !== 'undefined' ? supabase : null);
-    
-    if (!client) {
-        console.warn("Cliente Supabase não encontrado. Verifique as chaves ou o script do Supabase no HTML.");
+// --- 2. CONTROLE DE AUTENTICAÇÃO E INICIALIZAÇÃO ---
+window.addEventListener('DOMContentLoaded', async () => {
+    if (!supabaseClient) {
+        console.error("Supabase não foi configurado. Insira a URL e a KEY no app.js.");
         return;
     }
 
+    // Verifica se já existe uma sessão ativa
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    
+    if (session) {
+        exibirApp(session.user.email);
+    } else {
+        exibirLogin();
+    }
+
+    // Ouve alterações no estado da sessão (Login / Logout)
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            exibirApp(session.user.email);
+        } else {
+            exibirLogin();
+        }
+    });
+});
+
+function exibirLogin() {
+    document.getElementById('telaLogin').style.display = 'flex';
+    document.getElementById('appContainer').style.display = 'none';
+}
+
+function exibirApp(email) {
+    document.getElementById('telaLogin').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'block';
+    if (email && document.getElementById('userDisplayTag')) {
+        document.getElementById('userDisplayTag').innerText = `👤 ${email}`;
+    }
+    carregarDadosDoBanco();
+}
+
+async function executarLogin() {
+    const email = document.getElementById('loginEmail')?.value;
+    const senha = document.getElementById('loginSenha')?.value;
+
+    if (!email || !senha) {
+        alert("Preencha e-mail e senha para entrar.");
+        return;
+    }
+
+    if (!supabaseClient) {
+        alert("Chaves do Supabase não configuradas no app.js.");
+        return;
+    }
+
+    const { error } = await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: senha
+    });
+
+    if (error) {
+        alert("Falha no Login: " + error.message);
+    }
+}
+
+async function deslogar() {
+    if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+    }
+    exibirLogin();
+}
+
+// --- 3. BUSCAR DADOS DO SUPABASE ---
+async function carregarDadosDoBanco() {
+    if (!supabaseClient) return;
+
     try {
-        // Busca todos os registros da tabela 'transacoes' (ou o nome da sua tabela)
-        const { data, error } = await client
+        const { data, error } = await supabaseClient
             .from('transacoes')
             .select('*')
             .order('vencimento', { ascending: true });
 
         if (error) {
-            console.error("Erro ao buscar dados do Supabase:", error);
+            console.error("Erro ao buscar registros:", error.message);
+            alert("Erro ao carregar dados do banco: " + error.message);
             return;
         }
 
-        if (data) {
-            listaRegistros = data;
-            renderizarTabela();
-        }
+        listaRegistros = data || [];
+        renderizarTabela();
     } catch (err) {
-        console.error("Falha na comunicação com o banco de dados:", err);
+        console.error("Erro inesperado:", err);
     }
 }
 
-// --- 3. NAVEGAÇÃO ENTRE ABAS ---
+// --- 4. NAVEGAÇÃO ENTRE ABAS ---
 function mudarAba(nomeAba, botaoClicado) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn-top').forEach(el => el.classList.remove('active'));
@@ -58,7 +122,7 @@ function mudarAba(nomeAba, botaoClicado) {
     }
 }
 
-// --- 4. CONTROLE E TIPO DE LANÇAMENTO ---
+// --- 5. TIPO DE LANÇAMENTO E EDIÇÃO INLINE ---
 function selecionarTipoForm(tipo) {
     document.getElementById('tipoLancamento').value = tipo;
     document.getElementById('btnTipoSaida').className = tipo === 'saida' ? 'type-btn active-saida' : 'type-btn';
@@ -88,7 +152,7 @@ function fecharEdicaoInline() {
     document.getElementById('painelEdicaoInline').style.display = 'none';
 }
 
-// --- 5. INSERIR NOVO REGISTRO NO BANCO ---
+// --- 6. SALVAR, ATUALIZAR E EXCLUIR REGISTROS ---
 async function salvarGasto() {
     const desc = document.getElementById('desc')?.value;
     const categoria = document.getElementById('categoria')?.value;
@@ -97,7 +161,7 @@ async function salvarGasto() {
     const tipo = document.getElementById('tipoLancamento')?.value || 'saida';
 
     if (!desc || isNaN(valor) || !vencimento) {
-        alert("Por favor, preencha a descrição, o valor e o vencimento.");
+        alert("Preencha todos os campos obrigatórios.");
         return;
     }
 
@@ -109,11 +173,10 @@ async function salvarGasto() {
         tipo: tipo
     };
 
-    const client = supabaseClient || (typeof supabase !== 'undefined' ? supabase : null);
-    if (client) {
-        const { error } = await client.from('transacoes').insert([novoObjeto]);
+    if (supabaseClient) {
+        const { error } = await supabaseClient.from('transacoes').insert([novoObjeto]);
         if (error) {
-            alert("Erro ao salvar no banco de dados: " + error.message);
+            alert("Erro ao gravar registro: " + error.message);
             return;
         }
     }
@@ -121,12 +184,10 @@ async function salvarGasto() {
     document.getElementById('gastoForm')?.reset();
     selecionarTipoForm('saida');
     
-    // Recarrega do banco e volta para a aba principal
     await carregarDadosDoBanco();
     mudarAba('Resumo', document.querySelector('.tab-btn-top'));
 }
 
-// --- 6. ATUALIZAR REGISTRO NO BANCO ---
 async function salvarEdicaoInline() {
     const id = document.getElementById('editIdInline').value;
     const desc = document.getElementById('editDescInline').value;
@@ -143,11 +204,10 @@ async function salvarEdicaoInline() {
         tipo: tipo
     };
 
-    const client = supabaseClient || (typeof supabase !== 'undefined' ? supabase : null);
-    if (client) {
-        const { error } = await client.from('transacoes').update(dadosAtualizados).eq('id', id);
+    if (supabaseClient) {
+        const { error } = await supabaseClient.from('transacoes').update(dadosAtualizados).eq('id', id);
         if (error) {
-            alert("Erro ao atualizar no banco de dados: " + error.message);
+            alert("Erro ao atualizar registro: " + error.message);
             return;
         }
     }
@@ -156,15 +216,13 @@ async function salvarEdicaoInline() {
     await carregarDadosDoBanco();
 }
 
-// --- 7. EXCLUIR REGISTRO NO BANCO ---
 async function excluirRegistro(id) {
-    if (!confirm("Tem certeza de que deseja remover este lançamento?")) return;
+    if (!confirm("Deseja realmente remover este lançamento?")) return;
 
-    const client = supabaseClient || (typeof supabase !== 'undefined' ? supabase : null);
-    if (client) {
-        const { error } = await client.from('transacoes').delete().eq('id', id);
+    if (supabaseClient) {
+        const { error } = await supabaseClient.from('transacoes').delete().eq('id', id);
         if (error) {
-            alert("Erro ao excluir do banco de dados: " + error.message);
+            alert("Erro ao excluir registro: " + error.message);
             return;
         }
     }
@@ -172,7 +230,7 @@ async function excluirRegistro(id) {
     await carregarDadosDoBanco();
 }
 
-// --- 8. RENDERIZAÇÃO DA TABELA ---
+// --- 7. RENDERIZAR TABELA ---
 function renderizarTabela() {
     const tbody = document.getElementById('tabelaCorpo');
     if (!tbody) return;
@@ -183,8 +241,9 @@ function renderizarTabela() {
     let totalSaidas = 0;
 
     listaRegistros.forEach(item => {
-        if (item.tipo === 'entrada') totalEntradas += Number(item.valor);
-        else totalSaidas += Number(item.valor);
+        const val = Number(item.valor) || 0;
+        if (item.tipo === 'entrada') totalEntradas += val;
+        else totalSaidas += val;
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -193,12 +252,12 @@ function renderizarTabela() {
                     ${item.tipo === 'entrada' ? '🟢 Entrada' : '🔴 Saída'}
                 </span>
             </td>
-            <td data-label="Descrição">${item.descricao}</td>
-            <td data-label="Categoria">${item.categoria}</td>
-            <td data-label="Vencimento">${item.vencimento}</td>
-            <td data-label="Valor">R$ ${Number(item.valor).toFixed(2)}</td>
+            <td data-label="Descrição">${item.descricao || ''}</td>
+            <td data-label="Categoria">${item.categoria || ''}</td>
+            <td data-label="Vencimento">${item.vencimento || ''}</td>
+            <td data-label="Valor">R$ ${val.toFixed(2)}</td>
             <td data-label="Ações">
-                <button class="btn-acao" onclick="abrirEdicaoInline('${item.id}', '${item.descricao}', '${item.categoria}', ${item.valor}, '${item.vencimento}', '${item.tipo}')">✏️ Editar</button>
+                <button class="btn-acao" onclick="abrirEdicaoInline('${item.id}', '${item.descricao}', '${item.categoria}', ${val}, '${item.vencimento}', '${item.tipo}')">✏️ Editar</button>
                 <button class="btn-acao" style="color:var(--danger);" onclick="excluirRegistro('${item.id}')">🗑️ Excluir</button>
             </td>
         `;
@@ -210,7 +269,7 @@ function renderizarTabela() {
     document.getElementById('dashSaldo').innerText = `R$ ${(totalEntradas - totalSaidas).toFixed(2)}`;
 }
 
-// --- 9. RENDERIZAÇÃO DA AGENDA ---
+// --- 8. AGENDA / CALENDÁRIO ---
 function renderizarAgenda() {
     const container = document.getElementById('calendarioAgenda');
     if (!container) return;
@@ -252,7 +311,7 @@ function renderizarAgenda() {
     }
 }
 
-// --- 10. RENDERIZAÇÃO DO GRÁFICO ---
+// --- 9. GRÁFICO DE CATEGORIAS ---
 function renderizarGrafico() {
     const canvas = document.getElementById('graficoCategorias');
     if (!canvas) return;
@@ -263,7 +322,8 @@ function renderizarGrafico() {
     const categoriasValores = {};
     listaRegistros.forEach(item => {
         if (item.tipo === 'saida') {
-            categoriasValores[item.categoria] = (categoriasValores[item.categoria] || 0) + Number(item.valor);
+            const cat = item.categoria || 'Outros';
+            categoriasValores[cat] = (categoriasValores[cat] || 0) + (Number(item.valor) || 0);
         }
     });
 
@@ -296,15 +356,6 @@ function renderizarGrafico() {
         }
     });
 }
-
-// --- INICIALIZAÇÃO ---
-window.addEventListener('DOMContentLoaded', async () => {
-    document.getElementById('telaLogin').style.display = 'none';
-    document.getElementById('appContainer').style.display = 'block';
-    
-    // Busca as informações do seu Banco de Dados assim que entra no app
-    await carregarDadosDoBanco();
-});
 
 function filtrarTabela() {
     const termo = document.getElementById('campoPesquisa').value.toLowerCase();

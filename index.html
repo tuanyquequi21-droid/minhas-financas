@@ -386,16 +386,18 @@
             <h2 style="margin-bottom:0.5rem;">Acessar Plataforma</h2>
             <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:1.5rem;">Entre para gerenciar suas finanças.</p>
             
-            <div class="input-group">
-                <label>E-mail</label>
-                <input type="email" id="loginEmail" class="input-premium" placeholder="seu@email.com">
-            </div>
-            <div class="input-group">
-                <label>Senha</label>
-                <input type="password" id="loginSenha" class="input-premium" placeholder="••••••••">
-            </div>
-            
-            <button type="button" class="btn-premium" onclick="if(typeof executarLogin==='function') executarLogin();">Entrar</button>
+            <form onsubmit="event.preventDefault(); executarLogin();">
+                <div class="input-group">
+                    <label>E-mail</label>
+                    <input type="email" id="loginEmail" class="input-premium" placeholder="seu@email.com" required>
+                </div>
+                <div class="input-group">
+                    <label>Senha</label>
+                    <input type="password" id="loginSenha" class="input-premium" placeholder="••••••••" required>
+                </div>
+                
+                <button type="submit" class="btn-premium">Entrar</button>
+            </form>
         </div>
     </div>
 
@@ -405,7 +407,7 @@
             <div class="brand-logo">Sua<span>Finança</span></div>
             <div style="display: flex; gap: 8px; align-items: center;">
                 <span id="userDisplayTag" class="user-badge">👤 Conectado</span>
-                <button type="button" onclick="if(typeof deslogar==='function') deslogar();" class="btn-acao" style="color:var(--danger); border-color:var(--danger);">Sair</button>
+                <button type="button" onclick="deslogar()" class="btn-acao" style="color:var(--danger); border-color:var(--danger);">Sair</button>
             </div>
         </header>
 
@@ -417,21 +419,15 @@
             <button class="tab-btn-top" onclick="mudarAba('Grafico', this)">📈 Relatórios & Gráficos</button>
         </nav>
 
-        <!-- MESES -->
-        <div class="tabs-wrapper">
-            <div class="tabs-container" id="tabsMeses"></div>
-            <button type="button" onclick="if(typeof criarNovoMes==='function') criarNovoMes();" class="tab-btn" style="background:var(--primary); color:white;">+ Mês</button>
-        </div>
-
         <main>
-            <!-- PAINEL DE EDIÇÃO INLINE (DENTRO DA TELA) -->
+            <!-- PAINEL DE EDIÇÃO INLINE -->
             <div id="painelEdicaoInline" class="glass-card" style="display: none; border-color: var(--primary);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h3 style="color: var(--primary);">✏️ Editando Registro Selecionado</h3>
                     <button type="button" onclick="fecharEdicaoInline()" class="btn-acao">Cancelar ✕</button>
                 </div>
                 
-                <form id="formEdicaoInline" onsubmit="return false;">
+                <form id="formEdicaoInline" onsubmit="event.preventDefault(); salvarEdicaoInline();">
                     <input type="hidden" id="editIdInline">
                     
                     <div class="type-selector">
@@ -469,7 +465,7 @@
                         <input type="date" id="editVencimentoInline" class="input-premium" required>
                     </div>
 
-                    <button type="button" onclick="salvarEdicaoInline()" class="btn-premium" style="margin-top: 0.5rem;">Salvar Alterações</button>
+                    <button type="submit" class="btn-premium" style="margin-top: 0.5rem;">Salvar Alterações</button>
                 </form>
             </div>
 
@@ -483,10 +479,6 @@
                     <div class="card-dash saida">
                         <h3>Total Saídas</h3>
                         <div class="value" id="dashSaidas">R$ 0,00</div>
-                    </div>
-                    <div class="card-dash">
-                        <h3>Pendentes</h3>
-                        <div class="value" id="dashAPagar" style="color: var(--warning);">R$ 0,00</div>
                     </div>
                     <div class="card-dash">
                         <h3>Saldo Líquido</h3>
@@ -520,7 +512,7 @@
                 <div class="glass-card" style="max-width: 600px; margin: 0 auto;">
                     <h3 style="margin-bottom: 1rem;">Cadastrar Movimentação</h3>
                     
-                    <form id="gastoForm" onsubmit="return false;">
+                    <form id="gastoForm" onsubmit="event.preventDefault(); salvarGasto();">
                         <div class="type-selector">
                             <button type="button" id="btnTipoSaida" class="type-btn active-saida" onclick="selecionarTipoForm('saida')">🔴 Saída / Despesa</button>
                             <button type="button" id="btnTipoEntrada" class="type-btn" onclick="selecionarTipoForm('entrada')">🟢 Entrada / Receita</button>
@@ -557,7 +549,7 @@
                             <input type="number" id="valorInput" class="input-premium" placeholder="0.00" step="0.01" required>
                         </div>
 
-                        <button type="button" onclick="salvarGasto()" class="btn-premium" style="margin-top: 1rem;">Salvar Lançamento</button>
+                        <button type="submit" class="btn-premium" style="margin-top: 1rem;">Salvar Lançamento</button>
                     </form>
                 </div>
             </div>
@@ -571,7 +563,7 @@
                 </div>
             </div>
 
-            <!-- ABA 4: GRÁFICO (LEGENDAS ABAIXO) -->
+            <!-- ABA 4: GRÁFICO -->
             <div id="abaGrafico" class="tab-content">
                 <div class="glass-card" style="max-width: 500px; margin: 0 auto; text-align: center;">
                     <h3 style="margin-bottom: 0.5rem;">Despesas por Categoria</h3>

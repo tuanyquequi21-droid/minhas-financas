@@ -2,7 +2,7 @@
 // Insira a URL e a Key pública do seu projeto Supabase abaixo se ainda não estiverem configuradas globalmente:
 const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q';
-// --- 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE ---
+
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioLogado = null;
@@ -11,6 +11,17 @@ let transacoesCache = [];
 let tipoSelecionado = 'entrada';
 let meuGrafico = null;
 let dataCalendarioAtual = new Date();
+
+// AUXILIAR: Função para evitar XSS
+function escaparHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 // MENU & NAVEGAÇÃO
 function toggleMenu() {
@@ -22,17 +33,19 @@ function navegarPara(paginaId) {
     document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
 
+    const navItems = document.querySelectorAll('.nav-item');
+
     if (paginaId === 'dashboard') {
         document.getElementById('pageDashboard').classList.add('active');
-        document.querySelectorAll('.nav-item')[0].classList.add('active');
+        if (navItems[0]) navItems[0].classList.add('active');
     } else if (paginaId === 'novoLancamento') {
         document.getElementById('pageNovoLancamento').classList.add('active');
-        document.querySelectorAll('.nav-item')[1].classList.add('active');
+        if (navItems[1]) navItems[1].classList.add('active');
     } else if (paginaId === 'historico') {
         document.getElementById('pageHistorico').classList.add('active');
-        document.querySelectorAll('.nav-item')[2].classList.add('active');
+        if (navItems[2]) navItems[2].classList.add('active');
     }
-    
+
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebarOverlay').classList.remove('active');
 }
@@ -51,9 +64,9 @@ async function fazerLogin() {
 
     const emailFake = `${usernameInput}@sistema.local`;
 
-    const { data, error } = await sb.auth.signInWithPassword({ 
-        email: emailFake, 
-        password: password 
+    const { data, error } = await sb.auth.signInWithPassword({
+        email: emailFake,
+        password: password
     });
 
     if (error) {
@@ -65,7 +78,7 @@ async function fazerLogin() {
 
 async function verificarSessao() {
     const { data: { user } } = await sb.auth.getUser();
-    if (user) {
+    if (user && user.email) {
         const username = user.email.split('@')[0];
         iniciarSessao(user, username);
     }
@@ -78,7 +91,7 @@ function iniciarSessao(user, username) {
     document.getElementById('loginSection').style.display = 'none';
     document.getElementById('appSection').style.display = 'block';
     document.getElementById('userDisplayTag').innerText = `@${usernameAtual}`;
-    
+
     document.getElementById('data').valueAsDate = new Date();
     carregarTransacoes();
 }
@@ -94,10 +107,10 @@ function selecionarTipo(tipo) {
     document.getElementById('btnSaida').classList.toggle('active', tipo === 'saida');
 }
 
-// SALVAR LANÇAMENTO (TRATAMENTO DE DIA 31 / ÚLTIMO DIA DO MÊS PRESERVANDO DIA ORIGINAL)
+// SALVAR LANÇAMENTO
 async function salvarTransacao(e) {
     e.preventDefault();
-    
+
     const targetUsername = document.getElementById('userInputTarget').value.trim().toLowerCase();
     let targetUserId = usuarioLogado.id;
 
@@ -119,30 +132,25 @@ async function salvarTransacao(e) {
     const dataInicialStr = document.getElementById('data').value;
     const categoria = document.getElementById('categoria').value;
     const tipoRecorrencia = document.getElementById('recorrencia').value;
-    
+
     let numLancamentos = 1;
     if (tipoRecorrencia === 'parcelado') {
         numLancamentos = parseInt(document.getElementById('totalParcelas').value) || 1;
     } else if (tipoRecorrencia === 'fixo') {
-        numLancamentos = 12; // Gera 12 meses para contas fixas
+        numLancamentos = 12;
     }
 
     const listaParaInserir = [];
-    // Guarda o DIA ORIGINAL selecionado pelo usuário (ex: 31)
     const [anoOriginal, mesOriginal, diaOriginal] = dataInicialStr.split('-').map(Number);
 
     for (let i = 0; i < numLancamentos; i++) {
         let anoDestino = anoOriginal;
-        let mesDestinoIndex = (mesOriginal - 1) + i; // Índice do mês no JS (0 a 11)
+        let mesDestinoIndex = (mesOriginal - 1) + i;
 
-        // Virada de ano caso o parcelamento passe de dezembro
         anoDestino += Math.floor(mesDestinoIndex / 12);
         mesDestinoIndex = mesDestinoIndex % 12;
 
-        // Descobre o último dia do mês de destino (ex: 28 em Fev, 30 em Abr, 31 em Mai)
         const ultimoDiaDoMes = new Date(anoDestino, mesDestinoIndex + 1, 0).getDate();
-
-        // Sempre compara o DIA ORIGINAL (ex: 31) com o limite do mês de destino
         const diaAjustado = Math.min(diaOriginal, ultimoDiaDoMes);
 
         const mesStr = String(mesDestinoIndex + 1).padStart(2, '0');
@@ -195,12 +203,14 @@ async function carregarTransacoes() {
         .select('*')
         .order('data', { ascending: false });
 
-    if (!error) {
+    if (!error && data) {
         transacoesCache = data;
         popularFiltroMeses();
+
+        // Obtém o mês/ano local atual no formato YYYY-MM
+        const agora = new Date();
+        const mesAtualStr = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
         
-        // Define o filtro do extrato padrão para o mês atual (YYYY-MM)
-        const mesAtualStr = new Date().toISOString().substring(0, 7);
         const selectFiltro = document.getElementById('filtroMes');
         if (selectFiltro.querySelector(`option[value="${mesAtualStr}"]`)) {
             selectFiltro.value = mesAtualStr;
@@ -214,13 +224,13 @@ async function carregarTransacoes() {
 function popularFiltroMeses() {
     const select = document.getElementById('filtroMes');
     const valorAtual = select.value;
-    select.innerHTML = '<option value="todos">Todos os Meses</option>';
+    
+    let htmlOptions = '<option value="todos">Todos os Meses</option>';
 
     const mesesMap = new Set();
     transacoesCache.forEach(t => {
         if (t.data) {
-            const mesAno = t.data.substring(0, 7); // Obtém YYYY-MM
-            mesesMap.add(mesAno);
+            mesesMap.add(t.data.substring(0, 7));
         }
     });
 
@@ -228,10 +238,11 @@ function popularFiltroMeses() {
 
     Array.from(mesesMap).sort().reverse().forEach(mesAno => {
         const [ano, mes] = mesAno.split('-');
-        const nomeFormatado = `${nomesMeses[parseInt(mes) - 1]} / ${ano}`;
-        select.innerHTML += `<option value="${mesAno}">${nomeFormatado}</option>`;
+        const nomeFormatado = `${nomesMeses[parseInt(mes, 10) - 1]} / ${ano}`;
+        htmlOptions += `<option value="${mesAno}">${nomeFormatado}</option>`;
     });
 
+    select.innerHTML = htmlOptions;
     if (valorAtual) select.value = valorAtual;
 }
 
@@ -296,12 +307,12 @@ async function salvarEdicaoTransacao(e) {
     }
 }
 
-// RENDERIZAÇÃO DE DADOS E CARDS DA TELA
+// RENDERIZAÇÃO DE DADOS E CARDS
 function renderizarDados() {
     let totEntradas = 0, totSaidas = 0;
     const catMap = {};
     const tbody = document.getElementById('tabelaRegistros');
-    tbody.innerHTML = '';
+    let tabelaHtml = '';
 
     const mesSelecionado = document.getElementById('filtroMes').value;
 
@@ -311,8 +322,9 @@ function renderizarDados() {
     });
 
     registrosFiltrados.forEach(t => {
-        if (t.tipo === 'entrada') totEntradas += t.valor;
-        else {
+        if (t.tipo === 'entrada') {
+            totEntradas += t.valor;
+        } else {
             totSaidas += t.valor;
             catMap[t.categoria] = (catMap[t.categoria] || 0) + t.valor;
         }
@@ -324,7 +336,7 @@ function renderizarDados() {
         const badgeStatusClass = isQuitado ? 'quitado' : 'pendente';
         const textoStatus = isQuitado ? 'Quitado ✅' : 'Pendente ⏳';
 
-        tbody.innerHTML += `
+        tabelaHtml += `
             <tr>
                 <td>
                     <span class="status-badge ${badgeStatusClass}" onclick="alternarStatusQuitado('${t.id}', '${t.status}')">
@@ -332,8 +344,8 @@ function renderizarDados() {
                     </span>
                 </td>
                 <td>${t.data.split('-').reverse().join('/')}</td>
-                <td>${t.descricao} ${badgeTipo}</td>
-                <td>${t.categoria}</td>
+                <td>${escaparHtml(t.descricao)} ${badgeTipo}</td>
+                <td>${escaparHtml(t.categoria)}</td>
                 <td class="${t.tipo === 'entrada' ? 'txt-success' : 'txt-danger'}">${t.tipo.toUpperCase()}</td>
                 <td>R$ ${t.valor.toFixed(2)}</td>
                 <td>
@@ -346,6 +358,8 @@ function renderizarDados() {
         `;
     });
 
+    tbody.innerHTML = tabelaHtml;
+
     document.getElementById('totalEntradas').innerText = `R$ ${totEntradas.toFixed(2)}`;
     document.getElementById('totalSaidas').innerText = `R$ ${totSaidas.toFixed(2)}`;
     document.getElementById('saldoTotal').innerText = `R$ ${(totEntradas - totSaidas).toFixed(2)}`;
@@ -354,7 +368,7 @@ function renderizarDados() {
     renderizarCalendario();
 }
 
-// CALENDÁRIO EXIBINDO NOMES E VALORES DAS CONTAS NO DIA
+// CALENDÁRIO
 function mudarMesCalendario(delta) {
     dataCalendarioAtual.setMonth(dataCalendarioAtual.getMonth() + delta);
     renderizarCalendario();
@@ -362,7 +376,7 @@ function mudarMesCalendario(delta) {
 
 function renderizarCalendario() {
     const grid = document.getElementById('calendarDays');
-    grid.innerHTML = '';
+    let calHtml = '';
 
     const ano = dataCalendarioAtual.getFullYear();
     const mes = dataCalendarioAtual.getMonth();
@@ -374,7 +388,7 @@ function renderizarCalendario() {
     const totalDiasMes = new Date(ano, mes + 1, 0).getDate();
 
     for (let i = 0; i < primeiroDiaSemana; i++) {
-        grid.innerHTML += `<div class="cal-day empty"></div>`;
+        calHtml += `<div class="cal-day empty"></div>`;
     }
 
     for (let dia = 1; dia <= totalDiasMes; dia++) {
@@ -385,24 +399,29 @@ function renderizarCalendario() {
         itensDia.forEach(item => {
             const classeTipo = item.tipo === 'entrada' ? 'entrada' : 'saida';
             eventosHtml += `
-                <div class="cal-event-item ${classeTipo}" title="${item.descricao} - R$ ${item.valor.toFixed(2)}">
-                    ${item.descricao} (R$${item.valor.toFixed(0)})
+                <div class="cal-event-item ${classeTipo}" title="${escaparHtml(item.descricao)} - R$ ${item.valor.toFixed(2)}">
+                    ${escaparHtml(item.descricao)} (R$${item.valor.toFixed(0)})
                 </div>
             `;
         });
 
-        grid.innerHTML += `
+        calHtml += `
             <div class="cal-day">
                 <span class="cal-day-num">${dia}</span>
                 <div class="cal-events">${eventosHtml}</div>
             </div>
         `;
     }
+
+    grid.innerHTML = calHtml;
 }
 
 // GRÁFICO E TEMA
 function desenharGrafico(dadosCategorias) {
-    const ctx = document.getElementById('meuGrafico').getContext('2d');
+    const canvas = document.getElementById('meuGrafico');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
     if (meuGrafico) meuGrafico.destroy();
 
     const corTexto = document.body.classList.contains('light-theme') ? '#0f172a' : '#f8fafc';
@@ -427,16 +446,21 @@ function desenharGrafico(dadosCategorias) {
 function aplicarTemaSalvo() {
     if (localStorage.getItem('tema_pref') === 'light') {
         document.body.classList.add('light-theme');
-        document.getElementById('btnTema').innerText = '☀️ Claro';
+        const btnTema = document.getElementById('btnTema');
+        if (btnTema) btnTema.innerText = '☀️ Claro';
     }
 }
 
 function alternarTema() {
     const isLight = document.body.classList.toggle('light-theme');
     localStorage.setItem('tema_pref', isLight ? 'light' : 'dark');
-    document.getElementById('btnTema').innerText = isLight ? '☀️ Claro' : '🌙 Escuro';
+    
+    const btnTema = document.getElementById('btnTema');
+    if (btnTema) btnTema.innerText = isLight ? '☀️ Claro' : '🌙 Escuro';
+    
     if (transacoesCache.length > 0) renderizarDados();
 }
 
+// INICIALIZAÇÃO
 aplicarTemaSalvo();
 verificarSessao();

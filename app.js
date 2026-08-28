@@ -3,8 +3,6 @@
 const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q';
 
-
-// Instância usando 'sb' para evitar conflito com a CDN global
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioLogado = null;
@@ -14,7 +12,7 @@ let tipoSelecionado = 'entrada';
 let meuGrafico = null;
 let dataCalendarioAtual = new Date();
 
-// MENU SANDUÍCHE E NAVEGAÇÃO
+// MENU & NAVEGAÇÃO
 function toggleMenu() {
     document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('sidebarOverlay').classList.toggle('active');
@@ -96,7 +94,7 @@ function selecionarTipo(tipo) {
     document.getElementById('btnSaida').classList.toggle('active', tipo === 'saida');
 }
 
-// SALVAR LANÇAMENTO (ÚNICO, FIXO OU PARCELADO)
+// SALVAR LANÇAMENTO
 async function salvarTransacao(e) {
     e.preventDefault();
     
@@ -111,7 +109,7 @@ async function salvarTransacao(e) {
             .single();
 
         if (perfError || !profileTarget) {
-            return alert(`O usuário "@${targetUsername}" não foi encontrado no sistema.`);
+            return alert(`O usuário "@${targetUsername}" não foi encontrado.`);
         }
         targetUserId = profileTarget.id;
     }
@@ -145,11 +143,13 @@ async function salvarTransacao(e) {
             descricao: descFinal,
             valor: valorFinal,
             data: dataFormatada,
+            vencimento: dataFormatada,
             categoria: categoria,
             tipo: tipoSelecionado,
             recorrencia: tipoRecorrencia,
             parcela_atual: i + 1,
-            total_parcelas: numParcelas
+            total_parcelas: numParcelas,
+            status: 'pendente'
         });
     }
 
@@ -176,25 +176,112 @@ async function carregarTransacoes() {
 
     if (!error) {
         transacoesCache = data;
+        popularFiltroMeses();
         renderizarDados();
     }
 }
 
+// ORGANIZAÇÃO POR MÊS NO EXTRATO
+function popularFiltroMeses() {
+    const select = document.getElementById('filtroMes');
+    const valorAtual = select.value;
+    select.innerHTML = '<option value="todos">Todos os Meses</option>';
+
+    const mesesMap = new Set();
+    transacoesCache.forEach(t => {
+        if (t.data) {
+            const mesAno = t.data.substring(0, 7); // Obtém YYYY-MM
+            mesesMap.add(mesAno);
+        }
+    });
+
+    const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+    Array.from(mesesMap).sort().reverse().forEach(mesAno => {
+        const [ano, mes] = mesAno.split('-');
+        const nomeFormatado = `${nomesMeses[parseInt(mes) - 1]} / ${ano}`;
+        select.innerHTML += `<option value="${mesAno}">${nomeFormatado}</option>`;
+    });
+
+    if (valorAtual) select.value = valorAtual;
+}
+
+// AÇÕES: EXCLUIR, QUITAR E EDITAR
 async function deletarTransacao(id) {
-    if (confirm("Deseja excluir este registro?")) {
-        await sb.from('transacoes').delete().eq('id', id);
+    if (confirm("Tem certeza que deseja excluir esta transação?")) {
+        const { error } = await sb.from('transacoes').delete().eq('id', id);
+        if (error) {
+            alert("Erro ao excluir: " + error.message);
+        } else {
+            carregarTransacoes();
+        }
+    }
+}
+
+async function alternarStatusQuitado(id, statusAtual) {
+    const novoStatus = statusAtual === 'quitado' ? 'pendente' : 'quitado';
+    const { error } = await sb.from('transacoes').update({ status: novoStatus }).eq('id', id);
+    if (!error) {
         carregarTransacoes();
     }
 }
 
-// RENDERIZAÇÃO DE DADOS
+function abrirModalEdicao(id) {
+    const item = transacoesCache.find(t => t.id === id);
+    if (!item) return;
+
+    document.getElementById('editId').value = item.id;
+    document.getElementById('editDesc').value = item.descricao;
+    document.getElementById('editValor').value = item.valor;
+    document.getElementById('editData').value = item.data;
+    document.getElementById('editCategoria').value = item.categoria;
+    document.getElementById('editStatus').value = item.status || 'pendente';
+
+    document.getElementById('modalEdicao').style.display = 'flex';
+}
+
+function fecharModalEdicao() {
+    document.getElementById('modalEdicao').style.display = 'none';
+}
+
+async function salvarEdicaoTransacao(e) {
+    e.preventDefault();
+
+    const id = document.getElementById('editId').value;
+    const novosDados = {
+        descricao: document.getElementById('editDesc').value,
+        valor: parseFloat(document.getElementById('editValor').value),
+        data: document.getElementById('editData').value,
+        vencimento: document.getElementById('editData').value,
+        categoria: document.getElementById('editCategoria').value,
+        status: document.getElementById('editStatus').value
+    };
+
+    const { error } = await sb.from('transacoes').update(novosDados).eq('id', id);
+
+    if (error) {
+        alert("Erro ao atualizar: " + error.message);
+    } else {
+        fecharModalEdicao();
+        carregarTransacoes();
+    }
+}
+
+// RENDERIZAÇÃO
 function renderizarDados() {
     let totEntradas = 0, totSaidas = 0;
     const catMap = {};
     const tbody = document.getElementById('tabelaRegistros');
     tbody.innerHTML = '';
 
-    transacoesCache.forEach(t => {
+    const mesSelecionado = document.getElementById('filtroMes').value;
+
+    const registrosFiltrados = transacoesCache.filter(t => {
+        if (!mesSelecionado || mesSelecionado === 'todos') return true;
+        return t.data && t.data.startsWith(mesSelecionado);
+    });
+
+    registrosFiltrados.forEach(t => {
         if (t.tipo === 'entrada') totEntradas += t.valor;
         else {
             totSaidas += t.valor;
@@ -204,14 +291,28 @@ function renderizarDados() {
         let badgeTipo = '';
         if (t.recorrencia === 'fixo') badgeTipo = ' <small style="color:var(--text-secondary);">(Fixo)</small>';
 
+        const isQuitado = t.status === 'quitado';
+        const badgeStatusClass = isQuitado ? 'quitado' : 'pendente';
+        const textoStatus = isQuitado ? 'Quitado ✅' : 'Pendente ⏳';
+
         tbody.innerHTML += `
             <tr>
+                <td>
+                    <span class="status-badge ${badgeStatusClass}" onclick="alternarStatusQuitado('${t.id}', '${t.status}')">
+                        ${textoStatus}
+                    </span>
+                </td>
                 <td>${t.data.split('-').reverse().join('/')}</td>
                 <td>${t.descricao} ${badgeTipo}</td>
                 <td>${t.categoria}</td>
                 <td class="${t.tipo === 'entrada' ? 'txt-success' : 'txt-danger'}">${t.tipo.toUpperCase()}</td>
                 <td>R$ ${t.valor.toFixed(2)}</td>
-                <td><button class="btn-secondary" onclick="deletarTransacao(${t.id})">🗑️</button></td>
+                <td>
+                    <div class="actions-cell">
+                        <button class="btn-icon" onclick="abrirModalEdicao('${t.id}')" title="Editar">✏️</button>
+                        <button class="btn-icon" onclick="deletarTransacao('${t.id}')" title="Excluir">🗑️</button>
+                    </div>
+                </td>
             </tr>
         `;
     });
@@ -224,7 +325,7 @@ function renderizarDados() {
     renderizarCalendario();
 }
 
-// CALENDÁRIO
+// CALENDÁRIO EXIBINDO NOMES E VALORES DAS CONTAS NO DIA
 function mudarMesCalendario(delta) {
     dataCalendarioAtual.setMonth(dataCalendarioAtual.getMonth() + delta);
     renderizarCalendario();
@@ -249,19 +350,22 @@ function renderizarCalendario() {
 
     for (let dia = 1; dia <= totalDiasMes; dia++) {
         const dataStr = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-        const itensDia = transacoesCache.filter(t => t.data === dataStr);
+        const itensDia = transacoesCache.filter(t => (t.vencimento || t.data) === dataStr);
 
-        let dotsHtml = '';
-        const temEntrada = itensDia.some(t => t.tipo === 'entrada');
-        const temSaida = itensDia.some(t => t.tipo === 'saida');
-
-        if (temEntrada) dotsHtml += `<span class="dot entrada"></span>`;
-        if (temSaida) dotsHtml += `<span class="dot saida"></span>`;
+        let eventosHtml = '';
+        itensDia.forEach(item => {
+            const classeTipo = item.tipo === 'entrada' ? 'entrada' : 'saida';
+            eventosHtml += `
+                <div class="cal-event-item ${classeTipo}" title="${item.descricao} - R$ ${item.valor.toFixed(2)}">
+                    ${item.descricao} (R$${item.valor.toFixed(0)})
+                </div>
+            `;
+        });
 
         grid.innerHTML += `
             <div class="cal-day">
-                <span>${dia}</span>
-                <div class="dots">${dotsHtml}</div>
+                <span class="cal-day-num">${dia}</span>
+                <div class="cal-events">${eventosHtml}</div>
             </div>
         `;
     }

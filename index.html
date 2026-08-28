@@ -166,7 +166,7 @@
         }
 
         @media(min-width: 768px) {
-            .dashboard { grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+            .dashboard { grid-template-columns: repeat(3, 1fr); gap: 1rem; }
         }
 
         .card-dash {
@@ -471,6 +471,12 @@
 
             <!-- ABA 1: RESUMO -->
             <div id="abaResumo" class="tab-content active">
+                
+                <!-- CARROSSEL / SELETOR DE MESES -->
+                <div class="tabs-wrapper">
+                    <div id="tabsMeses" class="tabs-container"></div>
+                </div>
+
                 <div class="dashboard">
                     <div class="card-dash entrada">
                         <h3>Total Entradas</h3>

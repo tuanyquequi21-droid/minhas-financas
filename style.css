@@ -33,7 +33,6 @@ body {
     transition: background-color 0.3s, color 0.3s;
 }
 
-/* LOGIN CARD */
 .login-card {
     max-width: 380px;
     margin: 80px auto;
@@ -49,7 +48,6 @@ body {
     text-align: center;
 }
 
-/* HEADER & NAVBAR */
 .header {
     display: flex;
     justify-content: space-between;
@@ -73,7 +71,6 @@ body {
     font-weight: 600;
 }
 
-/* SIDEBAR LATERAL (MENU SANDUÍCHE) */
 .sidebar {
     position: fixed;
     top: 0;
@@ -133,7 +130,6 @@ body {
     display: block;
 }
 
-/* BOTÕES E INPUTS */
 .btn-menu, .btn-close-menu {
     background: transparent;
     border: none;
@@ -188,7 +184,6 @@ input, select {
     outline: none;
 }
 
-/* LAYOUT E DASHBOARD */
 .main-content {
     max-width: 1100px;
     margin: 0 auto;
@@ -250,7 +245,6 @@ input, select {
     border-color: var(--primary);
 }
 
-/* TABELA */
 .table-responsive {
     overflow-x: auto;
     margin-top: 15px;
@@ -267,7 +261,6 @@ th, td {
     border-bottom: 1px solid var(--border);
 }
 
-/* CALENDÁRIO */
 .cal-header {
     display: flex;
     justify-content: space-between;

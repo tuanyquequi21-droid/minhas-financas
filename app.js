@@ -3,7 +3,8 @@
 const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q';
 
-// Inicializa o cliente na variável global 'sb' para evitar conflito com o script da CDN
+
+// Instância usando 'sb' para evitar conflito com a CDN global
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioLogado = null;
@@ -36,6 +37,11 @@ function navegarPara(paginaId) {
     
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebarOverlay').classList.remove('active');
+}
+
+function alternarCamposParcela() {
+    const tipo = document.getElementById('recorrencia').value;
+    document.getElementById('boxParcelas').style.display = tipo === 'parcelado' ? 'block' : 'none';
 }
 
 // AUTENTICAÇÃO
@@ -90,7 +96,7 @@ function selecionarTipo(tipo) {
     document.getElementById('btnSaida').classList.toggle('active', tipo === 'saida');
 }
 
-// SALVAR LANÇAMENTO
+// SALVAR LANÇAMENTO (ÚNICO, FIXO OU PARCELADO)
 async function salvarTransacao(e) {
     e.preventDefault();
     
@@ -107,28 +113,56 @@ async function salvarTransacao(e) {
         if (perfError || !profileTarget) {
             return alert(`O usuário "@${targetUsername}" não foi encontrado no sistema.`);
         }
-
         targetUserId = profileTarget.id;
     }
 
-    const novaTransacao = {
-        user_id: targetUserId,
-        descricao: document.getElementById('desc').value,
-        valor: parseFloat(document.getElementById('valor').value),
-        data: document.getElementById('data').value,
-        categoria: document.getElementById('categoria').value,
-        tipo: tipoSelecionado
-    };
+    const descBase = document.getElementById('desc').value;
+    const valorTotal = parseFloat(document.getElementById('valor').value);
+    const dataInicialStr = document.getElementById('data').value;
+    const categoria = document.getElementById('categoria').value;
+    const tipoRecorrencia = document.getElementById('recorrencia').value;
+    const numParcelas = tipoRecorrencia === 'parcelado' ? parseInt(document.getElementById('totalParcelas').value) : 1;
 
-    const { error } = await sb.from('transacoes').insert([novaTransacao]);
+    const listaParaInserir = [];
+    const [ano, mes, dia] = dataInicialStr.split('-').map(Number);
+
+    for (let i = 0; i < numParcelas; i++) {
+        const dataParcela = new Date(ano, (mes - 1) + i, dia);
+        const dataFormatada = dataParcela.toISOString().split('T')[0];
+
+        let descFinal = descBase;
+        let valorFinal = valorTotal;
+
+        if (tipoRecorrencia === 'parcelado') {
+            descFinal = `${descBase} (${i + 1}/${numParcelas})`;
+            valorFinal = valorTotal / numParcelas;
+        } else if (tipoRecorrencia === 'fixo') {
+            descFinal = `${descBase} 🔄`;
+        }
+
+        listaParaInserir.push({
+            user_id: targetUserId,
+            descricao: descFinal,
+            valor: valorFinal,
+            data: dataFormatada,
+            categoria: categoria,
+            tipo: tipoSelecionado,
+            recorrencia: tipoRecorrencia,
+            parcela_atual: i + 1,
+            total_parcelas: numParcelas
+        });
+    }
+
+    const { error } = await sb.from('transacoes').insert(listaParaInserir);
 
     if (error) {
         alert("Erro ao salvar: " + error.message);
     } else {
         document.getElementById('formTransacao').reset();
         document.getElementById('data').valueAsDate = new Date();
+        alternarCamposParcela();
         selecionarTipo('entrada');
-        alert("Lançamento salvo com sucesso!");
+        alert("Lançamento(s) salvo(s) com sucesso!");
         carregarTransacoes();
         navegarPara('dashboard');
     }
@@ -153,7 +187,7 @@ async function deletarTransacao(id) {
     }
 }
 
-// RENDERIZAÇÃO
+// RENDERIZAÇÃO DE DADOS
 function renderizarDados() {
     let totEntradas = 0, totSaidas = 0;
     const catMap = {};
@@ -167,10 +201,13 @@ function renderizarDados() {
             catMap[t.categoria] = (catMap[t.categoria] || 0) + t.valor;
         }
 
+        let badgeTipo = '';
+        if (t.recorrencia === 'fixo') badgeTipo = ' <small style="color:var(--text-secondary);">(Fixo)</small>';
+
         tbody.innerHTML += `
             <tr>
                 <td>${t.data.split('-').reverse().join('/')}</td>
-                <td>${t.descricao}</td>
+                <td>${t.descricao} ${badgeTipo}</td>
                 <td>${t.categoria}</td>
                 <td class="${t.tipo === 'entrada' ? 'txt-success' : 'txt-danger'}">${t.tipo.toUpperCase()}</td>
                 <td>R$ ${t.valor.toFixed(2)}</td>

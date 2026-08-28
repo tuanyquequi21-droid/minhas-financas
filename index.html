@@ -15,7 +15,7 @@
         <h2>Entrar no Sistema</h2>
         <div class="form-group">
             <label>Usuário</label>
-            <input type="text" id="loginUsername" placeholder="Digite seu usuário (ex: maria)" required autocomplete="off">
+            <input type="text" id="loginUsername" placeholder="Digite seu usuário (ex: tuany)" required autocomplete="off">
         </div>
         <div class="form-group">
             <label>Senha</label>
@@ -105,7 +105,7 @@
 
                         <div class="form-group">
                             <label>Descrição</label>
-                            <input type="text" id="desc" placeholder="Ex: Mercado, Salário..." required>
+                            <input type="text" id="desc" placeholder="Ex: Mercado, TV, Salário..." required>
                         </div>
 
                         <div class="row">
@@ -114,7 +114,7 @@
                                 <input type="number" step="0.01" id="valor" placeholder="0.00" required>
                             </div>
                             <div class="col">
-                                <label>Data</label>
+                                <label>Data Inicial</label>
                                 <input type="date" id="data" required>
                             </div>
                         </div>
@@ -132,10 +132,24 @@
                                 </select>
                             </div>
                             
-                            <!-- CAMPO DE DADO EM CONJUNTO VIA INPUT DE TEXTO -->
                             <div class="col">
                                 <label>Em conjunto com (Usuário)</label>
                                 <input type="text" id="userInputTarget" placeholder="Ex: joao (opcional)">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col">
+                                <label>Tipo de Cobrança</label>
+                                <select id="recorrencia" onchange="alternarCamposParcela()">
+                                    <option value="unico">Único (À vista)</option>
+                                    <option value="fixo">Fixo (Mensal)</option>
+                                    <option value="parcelado">Parcelado</option>
+                                </select>
+                            </div>
+                            <div class="col" id="boxParcelas" style="display: none;">
+                                <label>Nº de Parcelas</label>
+                                <input type="number" id="totalParcelas" min="2" max="72" value="2">
                             </div>
                         </div>
 

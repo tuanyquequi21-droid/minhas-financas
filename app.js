@@ -2,7 +2,7 @@
 // Insira a URL e a Key pública do seu projeto Supabase abaixo se ainda não estiverem configuradas globalmente:
 const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q';
-
+// --- 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE ---
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioLogado = null;
@@ -94,7 +94,7 @@ function selecionarTipo(tipo) {
     document.getElementById('btnSaida').classList.toggle('active', tipo === 'saida');
 }
 
-// SALVAR LANÇAMENTO
+// SALVAR LANÇAMENTO (COM TRATAMENTO DE DIA 31 / ÚLTIMO DIA DO MÊS)
 async function salvarTransacao(e) {
     e.preventDefault();
     
@@ -122,11 +122,25 @@ async function salvarTransacao(e) {
     const numParcelas = tipoRecorrencia === 'parcelado' ? parseInt(document.getElementById('totalParcelas').value) : 1;
 
     const listaParaInserir = [];
-    const [ano, mes, dia] = dataInicialStr.split('-').map(Number);
+    const [anoOriginal, mesOriginal, diaOriginal] = dataInicialStr.split('-').map(Number);
 
     for (let i = 0; i < numParcelas; i++) {
-        const dataParcela = new Date(ano, (mes - 1) + i, dia);
-        const dataFormatada = dataParcela.toISOString().split('T')[0];
+        let anoDestino = anoOriginal;
+        let mesDestinoIndex = (mesOriginal - 1) + i; // Índice do mês no JS (0 a 11)
+
+        // Calcula virada de ano caso o parcelamento ultrapasse dezembro
+        anoDestino += Math.floor(mesDestinoIndex / 12);
+        mesDestinoIndex = mesDestinoIndex % 12;
+
+        // Obtém o último dia útil do mês de destino
+        const ultimoDiaDoMes = new Date(anoDestino, mesDestinoIndex + 1, 0).getDate();
+
+        // Ajusta o dia para não pular de mês (ex: 31/01 -> 28/02 -> 31/03)
+        const diaAjustado = Math.min(diaOriginal, ultimoDiaDoMes);
+
+        const mesStr = String(mesDestinoIndex + 1).padStart(2, '0');
+        const diaStr = String(diaAjustado).padStart(2, '0');
+        const dataFormatada = `${anoDestino}-${mesStr}-${diaStr}`;
 
         let descFinal = descBase;
         let valorFinal = valorTotal;
@@ -177,6 +191,14 @@ async function carregarTransacoes() {
     if (!error) {
         transacoesCache = data;
         popularFiltroMeses();
+        
+        // Define o filtro do extrato padrão para o mês atual (YYYY-MM)
+        const mesAtualStr = new Date().toISOString().substring(0, 7);
+        const selectFiltro = document.getElementById('filtroMes');
+        if (selectFiltro.querySelector(`option[value="${mesAtualStr}"]`)) {
+            selectFiltro.value = mesAtualStr;
+        }
+
         renderizarDados();
     }
 }
@@ -267,7 +289,7 @@ async function salvarEdicaoTransacao(e) {
     }
 }
 
-// RENDERIZAÇÃO
+// RENDERIZAÇÃO DE DADOS E CARDS DA TELA
 function renderizarDados() {
     let totEntradas = 0, totSaidas = 0;
     const catMap = {};

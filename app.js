@@ -1,14 +1,11 @@
 
 
 // =========================================================================
-//  EDITE AS DUAS LINHAS ABAIXO COLOCANDO SUAS CHAVES DO SUPABASE
+// ⚠️ EDITE AS DUAS LINHAS ABAIXO COLOCANDO SUAS CHAVES DO SUPABASE
 // =========================================================================
 const SUPABASE_URL = "https://iecdvnsvnobpxqnusitw.supabase.co"; 
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q";           
 // ======// =========================================================================
-
-// --- CONFIGURAÇÃO E INICIALIZAÇÃO DO SUPABASE ---
-// --- CONFIGURAÇÃO E INICIALIZAÇÃO DO SUPABASE ---
 let bancoSupabase = null;
 try {
     if (SUPABASE_URL && SUPABASE_KEY && !SUPABASE_URL.includes("sua-url-aqui")) {
@@ -121,7 +118,7 @@ async function salvarGasto(e) {
     const desc = document.getElementById('desc').value.trim();
     const categoria = document.getElementById('categoria').value;
     const vencimentoOriginal = document.getElementById('vencimento').value;
-    const ehFamiliar = document.getElementById('gastoFamiliarCheck').checked;
+    const ehFamiliar = document.getElementById('gastoFamiliarCheck')?.checked || false;
     const tipoConta = document.getElementById('tipoContaSelect').value;
     
     if (!desc || !vencimentoOriginal) {
@@ -184,6 +181,38 @@ async function salvarGasto(e) {
     }
 }
 
+// --- EDIÇÃO DE GASTOS ---
+async function abrirEdicaoGasto(id) {
+    const item = gastos.find(g => g.id.toString() === id.toString());
+    if(!item) return;
+
+    const novaDesc = prompt("Editar Descrição:", item.desc);
+    if(novaDesc === null) return;
+
+    const novoValorStr = prompt("Editar Valor (R$):", item.valor);
+    if(novoValorStr === null) return;
+    const novoValor = parseFloat(novoValorStr) || item.valor;
+
+    const novoVenc = prompt("Editar Vencimento (AAAA-MM-DD):", item.vencimento);
+    if(novoVenc === null) return;
+
+    const ehConjunto = confirm("Esse gasto é CONJUNTO / COMPARTILHADO?\nClique [OK] para SIM ou [Cancelar] para NÃO.");
+
+    try {
+        const { error } = await bancoSupabase.from('gastos').update({
+            desc: novaDesc.trim(),
+            valor: novoValor,
+            vencimento: novoVenc,
+            eh_familiar: ehConjunto
+        }).eq('id', id);
+
+        if(error) alert("Erro ao editar: " + error.message);
+        else await carregarDadosNuvem();
+    } catch(e) {
+        console.error("Erro ao atualizar registro:", e);
+    }
+}
+
 // --- RENDERIZAÇÃO DA INTERFACE ---
 function atualizarInterface() {
     const appTela = document.getElementById('appContainer');
@@ -214,7 +243,7 @@ function atualizarInterface() {
         };
     }
 
-    // 🔄 LÓGICA DE PROJEÇÃO DE GASTOS FIXOS PARA OS PRÓXIMOS MESES
+    // 🔄 LÓGICA DE PROJEÇÃO DE GASTOS FIXOS
     let listaGastosProcessada = [...gastos];
     const gastosFixos = gastos.filter(g => g.tipo === 'fixo');
 
@@ -224,7 +253,7 @@ function atualizarInterface() {
 
         if (mesOrigem && mesOrigem <= mesSelecionado && !estaEncerrado) {
             const jaExisteNoMes = gastos.some(g => 
-                g.id_grupo === gf.id_grupo && 
+                (g.id_grupo === gf.id_grupo || g.id === gf.id) && 
                 g.vencimento && 
                 g.vencimento.startsWith(mesSelecionado)
             );
@@ -259,15 +288,16 @@ function atualizarInterface() {
                 const estaEncerrado = g.encerrado || (g.desc && g.desc.includes("[QUITADO]"));
 
                 if (!estaEncerrado) {
+                    if (g.pago) {
+                        meusGastosJaPagos += g.valor;
+                    } else {
+                        meusGastosAPagar += g.valor;
+                    }
+
                     if(g.eh_familiar) {
                         totalFamiliar += g.valor;
-                    } else {
-                        if(g.pago) {
-                            meusGastosJaPagos += g.valor;
-                        } else {
-                            meusGastosAPagar += g.valor;
-                        }
                     }
+
                     resumoGrafico[g.categoria] = (resumoGrafico[g.categoria] || 0) + g.valor;
                 }
 
@@ -280,22 +310,26 @@ function atualizarInterface() {
                     } else if(g.pago) {
                         tr.style.opacity = "0.6";
                         tr.style.textDecoration = "line-through";
+                    } else if (g.eh_familiar) {
+                        tr.style.borderLeft = "3px solid #3b82f6";
                     }
                     
                     const textoPagamento = g.pago && g.data_pagamento ? `<br><small style="color:var(--success); font-weight:normal; text-decoration:none; display:inline-block;">✓ Pago em: ${g.data_pagamento.split('-').reverse().join('/')}</small>` : '';
                     const textoEncerrado = estaEncerrado ? `<br><small style="color:#f43f5e; font-weight:bold; text-decoration:none;">🔒 CONTA ENCERRADA</small>` : '';
                     const tagFixo = g.tipo === 'fixo' ? ` <small style="color:#818cf8;">(Fixo)</small>` : '';
+                    const tagFamiliar = g.eh_familiar ? ` <small style="color:#3b82f6; font-size:0.75rem; font-weight:normal;">👥 Conjunto</small>` : '';
 
                     const iconeBotao = g.pago ? '↩' : '✓';
                     const corBotao = g.pago ? 'var(--text-muted)' : 'var(--success)';
                     const paramVirtual = g.ehVirtual ? 'true' : 'false';
 
                     tr.innerHTML = `
-                        <td data-label="Descrição"><b>${g.desc}</b>${tagFixo}${textoPagamento}${textoEncerrado}</td>
+                        <td data-label="Descrição"><b>${g.desc}</b>${tagFixo}${tagFamiliar}${textoPagamento}${textoEncerrado}</td>
                         <td data-label="Categoria">${g.categoria}</td>
                         <td data-label="Vencimento">${g.vencimento.split('-').reverse().join('/')}</td>
                         <td data-label="Valor">R$ ${g.valor.toFixed(2)}</td>
                         <td style="text-align:center; text-decoration:none !important;">
+                            ${!estaEncerrado && !g.ehVirtual ? `<button title="Editar Registro" style="background:#6366f1; color:white; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="abrirEdicaoGasto('${g.id}')">✏️</button>` : ''}
                             ${!estaEncerrado ? `<button title="Marcar como Pago" style="background:${corBotao}; color:#0f172a; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; font-weight:bold; cursor:pointer;" onclick="alternarStatusPago('${g.id}', ${g.pago}, ${paramVirtual}, '${g.id_grupo}')">${iconeBotao}</button>` : ''}
                             ${!estaEncerrado ? `<button title="Encerrar/Quitar Conta Definitivamente" style="background:#f43f5e; color:white; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="encerrarContaDefinitivo('${g.id}', '${g.desc}', ${paramVirtual}, '${g.id_grupo}')">🔒</button>` : ''}
                             <button title="Excluir" style="background:var(--danger); color:white; padding:6px 10px; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="deletarGasto('${g.id}', '${g.id_grupo}', '${g.tipo}', ${paramVirtual})">X</button>
@@ -318,10 +352,61 @@ function atualizarInterface() {
     if(dPag) dPag.innerText = `R$ ${meusGastosAPagar.toFixed(2)}`;
     if(dJaPago) dJaPago.innerText = `R$ ${meusGastosJaPagos.toFixed(2)}`;
     
-    const saldoCalculado = rSal - meusGastosJaPagos;
+    const saldoCalculado = rSal - (meusGastosAPagar + meusGastosJaPagos);
     if(dSal) dSal.innerText = `R$ ${saldoCalculado.toFixed(2)}`;
     
     renderizarGrafico(resumoGrafico);
+    renderizarCalendarioAgenda(listaGastosProcessada);
+}
+
+// --- AGENDA / CALENDÁRIO ---
+function renderizarCalendarioAgenda(listaGastos) {
+    const container = document.getElementById('calendarioAgenda');
+    if (!container) return;
+
+    container.innerHTML = '';
+    
+    const [ano, mes] = mesSelecionado.split('-').map(Number);
+    const diasNoMes = new Date(ano, mes, 0).getDate();
+
+    let html = `<h3 style="margin-bottom:12px; font-size:1.1rem; color:var(--text-main, #fff);">📅 Agenda de Vencimentos - ${mesSelecionado}</h3>`;
+    html += `<div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:6px; background:#0f172a; padding:10px; border-radius:8px;">`;
+
+    const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    diasSemana.forEach(d => {
+        html += `<div style="text-align:center; font-weight:bold; font-size:0.75rem; color:#94a3b8; padding-bottom:4px;">${d}</div>`;
+    });
+
+    const primeiroDiaSemana = new Date(ano, mes - 1, 1).getDay();
+    for (let i = 0; i < primeiroDiaSemana; i++) {
+        html += `<div style="background:rgba(255,255,255,0.02); min-height:60px; border-radius:4px;"></div>`;
+    }
+
+    for (let dia = 1; dia <= diasNoMes; dia++) {
+        const diaStr = dia < 10 ? `0${dia}` : `${dia}`;
+        const dataFormatada = `${mesSelecionado}-${diaStr}`;
+        const contasDoDia = listaGastos.filter(g => g.vencimento === dataFormatada && !g.encerrado && !g.desc?.includes("[QUITADO]"));
+
+        let bgDia = "rgba(255,255,255,0.05)";
+        if (contasDoDia.length > 0) {
+            const temPendente = contasDoDia.some(c => !c.pago);
+            bgDia = temPendente ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)";
+        }
+
+        html += `
+            <div style="background:${bgDia}; border:1px solid rgba(255,255,255,0.1); min-height:65px; border-radius:4px; padding:4px; font-size:0.75rem; overflow:hidden;">
+                <div style="font-weight:bold; font-size:0.8rem; margin-bottom:2px; color:#cbd5e1;">${dia}</div>
+                ${contasDoDia.map(c => `
+                    <div style="white-space:nowrap; text-overflow:ellipsis; overflow:hidden; font-size:0.68rem; margin-top:2px; padding:1px 3px; border-radius:2px; background:${c.pago ? '#10b981' : '#f43f5e'}; color:white;" title="${c.desc} - R$ ${c.valor.toFixed(2)}">
+                        ${c.desc}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
 }
 
 // --- AÇÕES NOS GASTOS ---
@@ -331,12 +416,12 @@ async function alternarStatusPago(id, status, ehVirtual = false, idGrupo = null)
 
     try { 
         if (ehVirtual) {
-            const gastoOriginal = gastos.find(g => g.id_grupo === idGrupo);
+            const gastoOriginal = gastos.find(g => g.id_grupo === idGrupo || g.id.toString() === id.replace(`virtual_`, '').replace(`_${mesSelecionado}`, ''));
             if (!gastoOriginal) return;
 
             const diaVencimento = gastoOriginal.vencimento ? gastoOriginal.vencimento.split('-')[2] : '01';
             const novoGastoReal = {
-                id_grupo: gastoOriginal.id_grupo,
+                id_grupo: gastoOriginal.id_grupo || Date.now().toString(),
                 usuario_dono: usuarioLogado.email,
                 desc: gastoOriginal.desc,
                 categoria: gastoOriginal.categoria,
@@ -424,9 +509,7 @@ function renderizarGrafico(dados) {
 }
 
 // --- EVENTOS E INICIALIZAÇÃO CORRIGIDA ---
-
 function vincularFormularioLogin() {
-    // Intercepta o Submit do Form no HTML para evitar o reload involuntário
     const loginForm = document.getElementById('loginForm') || document.querySelector('#telaLogin form');
     if (loginForm) {
         loginForm.onsubmit = function(e) {
@@ -435,7 +518,6 @@ function vincularFormularioLogin() {
         };
     }
 
-    // Vincula o clique do botão de login de forma isolada
     const btnLogin = document.getElementById('btnEntrarLogin');
     if (btnLogin) {
         btnLogin.onclick = function(e) {
@@ -446,26 +528,21 @@ function vincularFormularioLogin() {
 }
 
 window.onload = async function() {
-    // 1. Vincula manipuladores de login
     vincularFormularioLogin();
 
-    // 2. Vincula formulários e entradas
     document.getElementById('gastoForm')?.addEventListener('submit', salvarGasto);
     const btnSalvar = document.getElementById('btnSalvarGasto');
     if (btnSalvar) { btnSalvar.onclick = salvarGasto; }
     document.getElementById('tipoContaSelect')?.addEventListener('change', alternarCamposTipo);
     
-    // 3. Validação e restauração de sessão do LocalStorage
     const sessao = localStorage.getItem('sessao_usuario');
     if (sessao) { 
         try {
             usuarioLogado = JSON.parse(sessao);
             
-            // Checa com a API do Supabase se o token armazenado ainda é válido
             if (bancoSupabase) {
                 const { data: { session }, error } = await bancoSupabase.auth.getSession();
                 if (error || !session) {
-                    // Token expirado: limpa a sessão local e força permanência na tela de login
                     localStorage.removeItem('sessao_usuario');
                     usuarioLogado = null;
                     return;

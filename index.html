@@ -3,160 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle Financeiro</title>
-    <link rel="stylesheet" href="style.css?v=2.0">
+    <title>Painel Financeiro Pro</title>
+    <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Biblioteca do Gráfico -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-    <div class="container">
-        <!-- TELA DE LOGIN -->
-        <div id="telaLogin" class="login-card">
-            <h2>Entrar no Sistema</h2>
-            <div class="form-group">
-                <label>E-mail</label>
-                <input type="email" id="loginEmail" required>
-            </div>
-            <div class="form-group">
-                <label>Senha</label>
-                <input type="password" id="loginSenha" required>
-            </div>
-            <button class="btn-primary" onclick="executarLogin()">Entrar</button>
+    <!-- TELA DE LOGIN POR USUÁRIO -->
+    <div id="loginSection" class="login-card">
+        <h2>Entrar no Sistema</h2>
+        <div class="form-group">
+            <label>Usuário</label>
+            <input type="text" id="loginUsername" placeholder="Digite seu usuário (ex: maria)" required autocomplete="off">
         </div>
+        <div class="form-group">
+            <label>Senha</label>
+            <input type="password" id="loginSenha" placeholder="******" required>
+        </div>
+        <button class="btn-primary" onclick="fazerLogin()">Entrar</button>
+    </div>
 
-        <!-- APP PRINCIPAL -->
-        <div id="appContainer" style="display: none;">
-            <div class="header">
-                <h2>Painel Financeiro</h2>
-                <div>
-                    <span id="userDisplayTag"></span>
-                    <button class="btn-secondary" onclick="deslogar()">Sair</button>
-                </div>
+    <!-- ÁREA AUTENTICADA -->
+    <div id="appSection" style="display: none;">
+        
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>💰 Financeiro</h3>
+                <button class="btn-close-menu" onclick="toggleMenu()">✕</button>
             </div>
+            <nav class="sidebar-nav">
+                <button class="nav-item active" onclick="navegarPara('dashboard')">📊 Visão Geral & Calendário</button>
+                <button class="nav-item" onclick="navegarPara('novoLancamento')">➕ Novo Lançamento</button>
+                <button class="nav-item" onclick="navegarPara('historico')">📋 Extrato / Registros</button>
+            </nav>
+        </aside>
 
-            <!-- CARROSSEL DE MESES -->
-            <div id="tabsMeses" class="tabs-container"></div>
+        <div id="sidebarOverlay" class="overlay" onclick="toggleMenu()"></div>
 
-            <!-- DASHBOARD -->
-            <div class="dashboard">
-                <div class="card">
-                    <h4>Entradas</h4>
-                    <p id="dashEntradas" class="txt-success">R$ 0,00</p>
+        <!-- CONTEÚDO PRINCIPAL -->
+        <div class="main-content">
+            
+            <header class="header">
+                <button class="btn-menu" onclick="toggleMenu()">☰ Menu</button>
+                <div class="header-right">
+                    <button class="btn-secondary" onclick="alternarTema()" id="btnTema">🌙 Escuro</button>
+                    <span id="userDisplayTag" class="user-badge"></span>
+                    <button class="btn-secondary btn-logout" onclick="deslogar()">Sair</button>
                 </div>
-                <div class="card">
-                    <h4>Saídas</h4>
-                    <p id="dashSaidas" class="txt-danger">R$ 0,00</p>
-                </div>
-                <div class="card">
-                    <h4>Saldo do Mês</h4>
-                    <p id="dashSaldo">R$ 0,00</p>
-                </div>
-            </div>
+            </header>
 
-            <!-- GRÁFICO DE DESPESAS POR CATEGORIA -->
-            <div class="form-card" style="margin-bottom: 25px;">
-                <h3>Resumo Por Categoria</h3>
-                <div style="max-height: 250px; display: flex; justify-content: center;">
-                    <canvas id="graficoCategorias"></canvas>
-                </div>
-            </div>
-
-            <!-- FORMULÁRIO DE CADASTRO -->
-            <div class="form-card">
-                <h3 id="formTitulo">Cadastrar Movimentação</h3>
-                <form id="formCadastro" onsubmit="salvarLancamento(event)">
-                    <input type="hidden" id="editId">
-
-                    <div class="row">
-                        <button type="button" id="btnSaida" class="btn-tipo active" onclick="selecionarTipo('saida')">🔴 Saída / Despesa</button>
-                        <button type="button" id="btnEntrada" class="btn-tipo" onclick="selecionarTipo('entrada')">🟢 Entrada / Receita</button>
+            <!-- ABA 1: DASHBOARD & CALENDÁRIO -->
+            <section id="pageDashboard" class="page-content active">
+                <div class="dashboard-cards">
+                    <div class="card">
+                        <h4>Entradas</h4>
+                        <p id="totalEntradas" class="txt-success">R$ 0,00</p>
                     </div>
-
-                    <div class="form-group">
-                        <label>Descrição</label>
-                        <input type="text" id="cadDescricao" placeholder="Ex: Tio Léo, Mercado, Aluguel" required>
+                    <div class="card">
+                        <h4>Saídas</h4>
+                        <p id="totalSaidas" class="txt-danger">R$ 0,00</p>
                     </div>
+                    <div class="card">
+                        <h4>Saldo Total</h4>
+                        <p id="saldoTotal">R$ 0,00</p>
+                    </div>
+                </div>
 
-                    <div class="row">
-                        <div class="col">
-                            <label>Categoria</label>
-                            <select id="cadCategoria">
-                                <option value="Transporte">Transporte</option>
-                                <option value="Moradia">Moradia</option>
-                                <option value="Alimentação">Alimentação</option>
-                                <option value="Lazer">Lazer</option>
-                                <option value="Rendimento">Rendimento</option>
-                                <option value="Outros">Outros</option>
-                            </select>
-                        </div>
-                        <div class="col">
-                            <label>Vencimento / Calendário</label>
-                            <input type="date" id="cadVencimento" required>
+                <div class="grid-2-col">
+                    <div class="card-box">
+                        <h3>Resumo por Categoria</h3>
+                        <div class="chart-container">
+                            <canvas id="meuGrafico"></canvas>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Tipo de Lançamento</label>
-                        <select id="cadRecorrencia" onchange="alternarCampoParcelas()">
-                            <option value="unico">Único (Apenas este mês)</option>
-                            <option value="fixo">Fixo (Repete todo mês)</option>
-                            <option value="parcelado">Parcelado (Dividido em meses)</option>
-                        </select>
-                    </div>
-
-                    <div id="boxParcelas" class="form-group" style="display: none;">
-                        <label>Número de Parcelas</label>
-                        <input type="number" id="cadTotalParcelas" min="2" max="72" value="2">
-                    </div>
-
-                    <!-- CONTA EM CONJUNTO -->
-                    <div class="form-group" style="background: rgba(255,255,255,0.03); padding: 10px; border-radius: 6px;">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #fff;">
-                            <input type="checkbox" id="cadEmConjunto" onchange="alternarCampoConjunto()" style="width: auto;"> 
-                            <span>Conta em conjunto?</span>
-                        </label>
-                        <div id="boxCompartilhar" style="display: none; margin-top: 10px;">
-                            <label>Compartilhar com:</label>
-                            <select id="cadUsuarioCompartilhar"></select>
+                    <div class="card-box">
+                        <div class="cal-header">
+                            <button class="btn-secondary" onclick="mudarMesCalendario(-1)">❮</button>
+                            <h3 id="calTituloMes">Mês Ano</h3>
+                            <button class="btn-secondary" onclick="mudarMesCalendario(1)">❯</button>
                         </div>
+                        <div class="calendar-grid-header">
+                            <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
+                        </div>
+                        <div id="calendarDays" class="calendar-grid"></div>
                     </div>
+                </div>
+            </section>
 
-                    <div class="form-group">
-                        <label>Valor (R$)</label>
-                        <input type="number" id="cadValor" step="0.01" placeholder="0,00" required>
+            <!-- ABA 2: NOVO LANÇAMENTO -->
+            <section id="pageNovoLancamento" class="page-content">
+                <div class="form-card">
+                    <h2>Cadastrar Transação</h2>
+                    <form id="formTransacao" onsubmit="salvarTransacao(event)">
+                        <div class="row">
+                            <button type="button" id="btnEntrada" class="btn-tipo active" onclick="selecionarTipo('entrada')">➕ Entrada</button>
+                            <button type="button" id="btnSaida" class="btn-tipo" onclick="selecionarTipo('saida')">➖ Saída</button>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Descrição</label>
+                            <input type="text" id="desc" placeholder="Ex: Mercado, Salário..." required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col">
+                                <label>Valor (R$)</label>
+                                <input type="number" step="0.01" id="valor" placeholder="0.00" required>
+                            </div>
+                            <div class="col">
+                                <label>Data</label>
+                                <input type="date" id="data" required>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col">
+                                <label>Categoria</label>
+                                <select id="categoria" required>
+                                    <option value="Alimentação">Alimentação</option>
+                                    <option value="Moradia">Moradia</option>
+                                    <option value="Transporte">Transporte</option>
+                                    <option value="Lazer">Lazer</option>
+                                    <option value="Salário">Salário</option>
+                                    <option value="Outros">Outros</option>
+                                </select>
+                            </div>
+                            
+                            <!-- CAMPO DE DADO EM CONJUNTO VIA INPUT DE TEXTO -->
+                            <div class="col">
+                                <label>Em conjunto com (Usuário)</label>
+                                <input type="text" id="userInputTarget" placeholder="Ex: joao (opcional)">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-primary">Salvar Lançamento</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ABA 3: HISTÓRICO DE REGISTROS -->
+            <section id="pageHistorico" class="page-content">
+                <div class="card-box">
+                    <div class="header-table">
+                        <h2>Registros Financeiros</h2>
                     </div>
-
-                    <div class="row">
-                        <button type="submit" class="btn-primary" id="btnSalvar">Salvar Lançamento</button>
-                        <button type="button" class="btn-secondary" id="btnCancelarEdit" onclick="limparFormulario()" style="display: none;">Cancelar</button>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Descrição</th>
+                                    <th>Categoria</th>
+                                    <th>Tipo</th>
+                                    <th>Valor</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaRegistros"></tbody>
+                        </table>
                     </div>
-                </form>
-            </div>
+                </div>
+            </section>
 
-            <!-- BARRA DE PESQUISA -->
-            <div class="form-group" style="margin-bottom: 15px;">
-                <input type="text" id="campoBusca" placeholder="🔍 Pesquisar por descrição ou categoria..." oninput="renderizarDados()">
-            </div>
-
-            <!-- TABELA -->
-            <table>
-                <thead>
-                    <tr>
-                        <th>Tipo</th>
-                        <th>Descrição</th>
-                        <th>Categoria</th>
-                        <th>Vencimento</th>
-                        <th>Valor</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="tabelaCorpo"></tbody>
-            </table>
         </div>
     </div>
 
-    <script src="app.js?v=2.0"></script>
+    <script src="app.js"></script>
 </body>
 </html>

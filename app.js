@@ -1,8 +1,8 @@
 // --- 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE ---
 // Insira a URL e a Key pública do seu projeto Supabase abaixo se ainda não estiverem configuradas globalmente:
-const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabase.co'; 
+const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabaseClient.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioAtual = null;
 let transacoesCache = [];
@@ -11,7 +11,7 @@ let tipoSelecionado = 'saida';
 
 // 🔄 INICIALIZAÇÃO
 window.addEventListener('DOMContentLoaded', async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
         usuarioAtual = session.user;
         mostrarSistema();
@@ -23,7 +23,7 @@ async function executarLogin() {
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginSenha').value;
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) return alert('Erro no login: ' + error.message);
 
     usuarioAtual = data.user;
@@ -31,7 +31,7 @@ async function executarLogin() {
 }
 
 async function deslogar() {
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
     location.reload();
 }
 
@@ -142,7 +142,7 @@ async function salvarLancamento(e) {
         });
     }
 
-    const { error } = await supabase.from('transacoes').insert(registrosParaInserir);
+    const { error } = await supabaseClient.from('transacoes').insert(registrosParaInserir);
 
     if (error) {
         alert('Erro ao salvar: ' + error.message);

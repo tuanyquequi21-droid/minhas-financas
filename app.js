@@ -207,17 +207,18 @@ async function carregarTransacoes() {
     }
 }
 
+// POPULA O SELECT DO HISTÓRICO COMPLETO
 function popularFiltroMeses() {
     const select = document.getElementById('filtroMes');
     if (!select) return;
 
-    const valorAtual = select.value;
+    const valorSelecionadoAnteriormente = select.value;
     let htmlOptions = '<option value="todos">Todos os Meses</option>';
 
     const mesesMap = new Set();
     transacoesCache.forEach(t => {
-        if (t.data) {
-            mesesMap.add(t.data.substring(0, 7));
+        if (t.data && t.data.length >= 7) {
+            mesesMap.add(t.data.substring(0, 7)); // Extrai YYYY-MM
         }
     });
 
@@ -225,12 +226,21 @@ function popularFiltroMeses() {
 
     Array.from(mesesMap).sort().reverse().forEach(mesAno => {
         const [ano, mes] = mesAno.split('-');
-        const nomeFormatado = `${nomesMeses[parseInt(mes, 10) - 1]} / ${ano}`;
-        htmlOptions += `<option value="${mesAno}">${nomeFormatado}</option>`;
+        const idxMes = parseInt(mes, 10) - 1;
+        if (idxMes >= 0 && idxMes < 12) {
+            const nomeFormatado = `${nomesMeses[idxMes]} / ${ano}`;
+            htmlOptions += `<option value="${mesAno}">${nomeFormatado}</option>`;
+        }
     });
 
     select.innerHTML = htmlOptions;
-    if (valorAtual) select.value = valorAtual;
+    
+    // Restaura a seleção do usuário ou volta para "todos"
+    if (valorSelecionadoAnteriormente && select.querySelector(`option[value="${valorSelecionadoAnteriormente}"]`)) {
+        select.value = valorSelecionadoAnteriormente;
+    } else {
+        select.value = 'todos';
+    }
 }
 
 // RENDERIZAÇÃO DE DADOS (DASHBOARD E HISTÓRICO COMPLETO)
@@ -239,14 +249,15 @@ function renderizarDados() {
     const catMap = {};
     
     const tbodyDashboard = document.getElementById('tabelaRegistros');
-    const tbodyHistorico = document.getElementById('tabelaHistoricoCorpo');
+    // Mapeia tanto o ID principal quanto um fallback para a tabela do Histórico
+    const tbodyHistorico = document.getElementById('tabelaHistoricoCorpo') || document.getElementById('tabelaHistorico');
     
     let htmlDashboard = '';
     let htmlHistorico = '';
 
     // 1. FILTRO E PROCESSAMENTO DO DASHBOARD
     const inputMesDash = document.getElementById('filtroMesDashboard');
-    const mesDashSelecionado = inputMesDash ? inputMesDash.value : '';
+    const mesDashSelecionado = inputMesDash ? inputMesDash.value.trim() : '';
 
     const registrosDashboard = transacoesCache.filter(t => {
         if (!mesDashSelecionado) return true;
@@ -266,7 +277,7 @@ function renderizarDados() {
 
     // 2. FILTRO E PROCESSAMENTO DO HISTÓRICO COMPLETO
     const selectMesHist = document.getElementById('filtroMes');
-    const mesHistSelecionado = selectMesHist ? selectMesHist.value : 'todos';
+    const mesHistSelecionado = selectMesHist ? selectMesHist.value.trim() : 'todos';
 
     const registrosHistorico = transacoesCache.filter(t => {
         if (!mesHistSelecionado || mesHistSelecionado === 'todos') return true;
@@ -277,14 +288,18 @@ function renderizarDados() {
         htmlHistorico += criarLinhaTabela(t);
     });
 
-    // Atualiza as tabelas no DOM
+    // Injeta os dados nas respectivas tabelas caso existam na DOM
     if (tbodyDashboard) tbodyDashboard.innerHTML = htmlDashboard;
     if (tbodyHistorico) tbodyHistorico.innerHTML = htmlHistorico;
 
     // Atualiza os cards de totais do Dashboard
-    document.getElementById('totalEntradas').innerText = `R$ ${totEntradas.toFixed(2)}`;
-    document.getElementById('totalSaidas').innerText = `R$ ${totSaidas.toFixed(2)}`;
-    document.getElementById('saldoTotal').innerText = `R$ ${(totEntradas - totSaidas).toFixed(2)}`;
+    const elEntradas = document.getElementById('totalEntradas');
+    const elSaidas = document.getElementById('totalSaidas');
+    const elSaldo = document.getElementById('saldoTotal');
+
+    if (elEntradas) elEntradas.innerText = `R$ ${totEntradas.toFixed(2)}`;
+    if (elSaidas) elSaidas.innerText = `R$ ${totSaidas.toFixed(2)}`;
+    if (elSaldo) elSaldo.innerText = `R$ ${(totEntradas - totSaidas).toFixed(2)}`;
 
     desenharGrafico(catMap);
     renderizarCalendario();
@@ -299,6 +314,8 @@ function criarLinhaTabela(t) {
     const badgeStatusClass = isQuitado ? 'quitado' : 'pendente';
     const textoStatus = isQuitado ? 'Quitado ✅' : 'Pendente ⏳';
 
+    const dataFormatada = t.data ? t.data.split('T')[0].split('-').reverse().join('/') : '-';
+
     return `
         <tr>
             <td>
@@ -306,7 +323,7 @@ function criarLinhaTabela(t) {
                     ${textoStatus}
                 </span>
             </td>
-            <td>${t.data.split('-').reverse().join('/')}</td>
+            <td>${dataFormatada}</td>
             <td>${escaparHtml(t.descricao)} ${badgeTipo}</td>
             <td>${escaparHtml(t.categoria)}</td>
             <td class="${t.tipo === 'entrada' ? 'txt-success' : 'txt-danger'}">${t.tipo.toUpperCase()}</td>
@@ -341,7 +358,8 @@ function renderizarCalendario() {
     const anoHoje = hoje.getFullYear();
 
     const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    document.getElementById('calTituloMes').innerText = `${nomesMeses[mes]} ${ano}`;
+    const elTituloMes = document.getElementById('calTituloMes');
+    if (elTituloMes) elTituloMes.innerText = `${nomesMeses[mes]} ${ano}`;
 
     const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
     const totalDiasMes = new Date(ano, mes + 1, 0).getDate();
@@ -386,8 +404,11 @@ function exibirDetalhesDia(dataStr) {
     const itens = transacoesCache.filter(t => (t.vencimento || t.data) === dataStr);
     const [ano, mes, dia] = dataStr.split('-');
     
-    document.getElementById('modalDiaTitulo').innerText = `Lançamentos de ${dia}/${mes}/${ano}`;
+    const elModalTitulo = document.getElementById('modalDiaTitulo');
+    if (elModalTitulo) elModalTitulo.innerText = `Lançamentos de ${dia}/${mes}/${ano}`;
     const corpo = document.getElementById('modalDiaCorpo');
+
+    if (!corpo) return;
 
     if (itens.length === 0) {
         corpo.innerHTML = '<p style="color: var(--text-secondary);">Nenhum lançamento ou vencimento nesta data.</p>';
@@ -410,11 +431,13 @@ function exibirDetalhesDia(dataStr) {
         corpo.innerHTML = html;
     }
 
-    document.getElementById('modalDetalhesDia').style.display = 'flex';
+    const modal = document.getElementById('modalDetalhesDia');
+    if (modal) modal.style.display = 'flex';
 }
 
 function fecharModalDia() {
-    document.getElementById('modalDetalhesDia').style.display = 'none';
+    const modal = document.getElementById('modalDetalhesDia');
+    if (modal) modal.style.display = 'none';
 }
 
 // AÇÕES E DEMAIS FUNÇÕES
@@ -442,11 +465,13 @@ function abrirModalEdicao(id) {
     document.getElementById('editCategoria').value = item.categoria;
     document.getElementById('editStatus').value = item.status || 'pendente';
 
-    document.getElementById('modalEdicao').style.display = 'flex';
+    const modal = document.getElementById('modalEdicao');
+    if (modal) modal.style.display = 'flex';
 }
 
 function fecharModalEdicao() {
-    document.getElementById('modalEdicao').style.display = 'none';
+    const modal = document.getElementById('modalEdicao');
+    if (modal) modal.style.display = 'none';
 }
 
 async function salvarEdicaoTransacao(e) {

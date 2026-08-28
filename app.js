@@ -12,7 +12,6 @@ let tipoSelecionado = 'entrada';
 let meuGrafico = null;
 let dataCalendarioAtual = new Date();
 
-// AUXILIAR: Função para evitar XSS
 function escaparHtml(str) {
     if (!str) return '';
     return String(str)
@@ -23,7 +22,6 @@ function escaparHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
-// MENU & NAVEGAÇÃO
 function toggleMenu() {
     document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('sidebarOverlay').classList.toggle('active');
@@ -93,6 +91,14 @@ function iniciarSessao(user, username) {
     document.getElementById('userDisplayTag').innerText = `@${usernameAtual}`;
 
     document.getElementById('data').valueAsDate = new Date();
+    
+    // Inicializa o campo de mês do Dashboard com o mês atual YYYY-MM
+    const agora = new Date();
+    const inputMesDash = document.getElementById('filtroMesDashboard');
+    if (inputMesDash) {
+        inputMesDash.value = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
+    }
+
     carregarTransacoes();
 }
 
@@ -107,17 +113,13 @@ function selecionarTipo(tipo) {
     document.getElementById('btnSaida').classList.toggle('active', tipo === 'saida');
 }
 
-// SALVAR LANÇAMENTO (CORRIGIDO: Sempre salva no ID do usuário logado)
+// SALVAR LANÇAMENTO
 async function salvarTransacao(e) {
     e.preventDefault();
 
-    if (!usuarioLogado) {
-        return alert("Sessão expirada. Faça login novamente.");
-    }
+    if (!usuarioLogado) return alert("Sessão expirada. Faça login novamente.");
 
-    // Força o ID do usuário atualmente autenticado no sistema
     const targetUserId = usuarioLogado.id;
-
     const descBase = document.getElementById('desc').value;
     const valorTotal = parseFloat(document.getElementById('valor').value);
     const dataInicialStr = document.getElementById('data').value;
@@ -188,7 +190,7 @@ async function salvarTransacao(e) {
     }
 }
 
-// CARREGAR TRANSAÇÕES (CORRIGIDO: Filtra estritamente por ID)
+// CARREGAR TRANSAÇÕES
 async function carregarTransacoes() {
     if (!usuarioLogado) return;
 
@@ -201,24 +203,15 @@ async function carregarTransacoes() {
     if (!error && data) {
         transacoesCache = data;
         popularFiltroMeses();
-
-        const agora = new Date();
-        const mesAtualStr = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
-        
-        const selectFiltro = document.getElementById('filtroMes');
-        if (selectFiltro && selectFiltro.querySelector(`option[value="${mesAtualStr}"]`)) {
-            selectFiltro.value = mesAtualStr;
-        }
-
         renderizarDados();
     }
 }
 
-// ORGANIZAÇÃO POR MÊS NO EXTRATO
 function popularFiltroMeses() {
     const select = document.getElementById('filtroMes');
+    if (!select) return;
+
     const valorAtual = select.value;
-    
     let htmlOptions = '<option value="todos">Todos os Meses</option>';
 
     const mesesMap = new Set();
@@ -240,78 +233,19 @@ function popularFiltroMeses() {
     if (valorAtual) select.value = valorAtual;
 }
 
-// AÇÕES: EXCLUIR, QUITAR E EDITAR
-async function deletarTransacao(id) {
-    if (confirm("Tem certeza que deseja excluir esta transação?")) {
-        const { error } = await sb.from('transacoes').delete().eq('id', id);
-        if (error) {
-            alert("Erro ao excluir: " + error.message);
-        } else {
-            carregarTransacoes();
-        }
-    }
-}
-
-async function alternarStatusQuitado(id, statusAtual) {
-    const novoStatus = statusAtual === 'quitado' ? 'pendente' : 'quitado';
-    const { error } = await sb.from('transacoes').update({ status: novoStatus }).eq('id', id);
-    if (!error) {
-        carregarTransacoes();
-    }
-}
-
-function abrirModalEdicao(id) {
-    const item = transacoesCache.find(t => t.id === id);
-    if (!item) return;
-
-    document.getElementById('editId').value = item.id;
-    document.getElementById('editDesc').value = item.descricao;
-    document.getElementById('editValor').value = item.valor;
-    document.getElementById('editData').value = item.data;
-    document.getElementById('editCategoria').value = item.categoria;
-    document.getElementById('editStatus').value = item.status || 'pendente';
-
-    document.getElementById('modalEdicao').style.display = 'flex';
-}
-
-function fecharModalEdicao() {
-    document.getElementById('modalEdicao').style.display = 'none';
-}
-
-async function salvarEdicaoTransacao(e) {
-    e.preventDefault();
-
-    const id = document.getElementById('editId').value;
-    const novosDados = {
-        descricao: document.getElementById('editDesc').value,
-        valor: parseFloat(document.getElementById('editValor').value),
-        data: document.getElementById('editData').value,
-        vencimento: document.getElementById('editData').value,
-        categoria: document.getElementById('editCategoria').value,
-        status: document.getElementById('editStatus').value
-    };
-
-    const { error } = await sb.from('transacoes').update(novosDados).eq('id', id);
-
-    if (error) {
-        alert("Erro ao atualizar: " + error.message);
-    } else {
-        fecharModalEdicao();
-        carregarTransacoes();
-    }
-}
-
-// RENDERIZAÇÃO DE DADOS E CARDS
+// RENDERIZAÇÃO DE DADOS (PONTO 1: PERMITE CONSULTAR QUALQUER MÊS FUTURO/PASSADO)
 function renderizarDados() {
     let totEntradas = 0, totSaidas = 0;
     const catMap = {};
     const tbody = document.getElementById('tabelaRegistros');
     let tabelaHtml = '';
 
-    const mesSelecionado = document.getElementById('filtroMes').value;
+    // Lê o mês selecionado no filtro de Mês do Dashboard (Formato YYYY-MM)
+    const inputMesDash = document.getElementById('filtroMesDashboard');
+    const mesSelecionado = inputMesDash ? inputMesDash.value : '';
 
     const registrosFiltrados = transacoesCache.filter(t => {
-        if (!mesSelecionado || mesSelecionado === 'todos') return true;
+        if (!mesSelecionado) return true;
         return t.data && t.data.startsWith(mesSelecionado);
     });
 
@@ -352,7 +286,7 @@ function renderizarDados() {
         `;
     });
 
-    tbody.innerHTML = tabelaHtml;
+    if (tbody) tbody.innerHTML = tabelaHtml;
 
     document.getElementById('totalEntradas').innerText = `R$ ${totEntradas.toFixed(2)}`;
     document.getElementById('totalSaidas').innerText = `R$ ${totSaidas.toFixed(2)}`;
@@ -362,7 +296,7 @@ function renderizarDados() {
     renderizarCalendario();
 }
 
-// CALENDÁRIO
+// CALENDÁRIO (PONTO 2: DESTACA O DIA ATUAL E HABILITA CLIQUE PARA DETALHAR OS VENCIMENTOS)
 function mudarMesCalendario(delta) {
     dataCalendarioAtual.setMonth(dataCalendarioAtual.getMonth() + delta);
     renderizarCalendario();
@@ -370,10 +304,16 @@ function mudarMesCalendario(delta) {
 
 function renderizarCalendario() {
     const grid = document.getElementById('calendarDays');
-    let calHtml = '';
+    if (!grid) return;
 
+    let calHtml = '';
     const ano = dataCalendarioAtual.getFullYear();
     const mes = dataCalendarioAtual.getMonth();
+
+    const hoje = new Date();
+    const diaHoje = hoje.getDate();
+    const mesHoje = hoje.getMonth();
+    const anoHoje = hoje.getFullYear();
 
     const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     document.getElementById('calTituloMes').innerText = `${nomesMeses[mes]} ${ano}`;
@@ -389,18 +329,25 @@ function renderizarCalendario() {
         const dataStr = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
         const itensDia = transacoesCache.filter(t => (t.vencimento || t.data) === dataStr);
 
+        // Verifica se é o dia de hoje para grifar em verde
+        const isHoje = (dia === diaHoje && mes === mesHoje && ano === anoHoje) ? 'today' : '';
+
         let eventosHtml = '';
-        itensDia.forEach(item => {
+        itensDia.slice(0, 2).forEach(item => { // Mostra até 2 resumos visuais
             const classeTipo = item.tipo === 'entrada' ? 'entrada' : 'saida';
             eventosHtml += `
-                <div class="cal-event-item ${classeTipo}" title="${escaparHtml(item.descricao)} - R$ ${item.valor.toFixed(2)}">
+                <div class="cal-event-item ${classeTipo}">
                     ${escaparHtml(item.descricao)} (R$${item.valor.toFixed(0)})
                 </div>
             `;
         });
 
+        if (itensDia.length > 2) {
+            eventosHtml += `<small style="color:var(--text-secondary);">+${itensDia.length - 2} mais...</small>`;
+        }
+
         calHtml += `
-            <div class="cal-day">
+            <div class="cal-day ${isHoje}" onclick="exibirDetalhesDia('${dataStr}')">
                 <span class="cal-day-num">${dia}</span>
                 <div class="cal-events">${eventosHtml}</div>
             </div>
@@ -410,7 +357,95 @@ function renderizarCalendario() {
     grid.innerHTML = calHtml;
 }
 
-// GRÁFICO E TEMA
+// JANELA MODAL PARA DETALHAR OS VENCIMENTOS DO DIA CLICADO
+function exibirDetalhesDia(dataStr) {
+    const itens = transacoesCache.filter(t => (t.vencimento || t.data) === dataStr);
+    const [ano, mes, dia] = dataStr.split('-');
+    
+    document.getElementById('modalDiaTitulo').innerText = `Lançamentos de ${dia}/${mes}/${ano}`;
+    const corpo = document.getElementById('modalDiaCorpo');
+
+    if (itens.length === 0) {
+        corpo.innerHTML = '<p style="color: var(--text-secondary);">Nenhum lançamento ou vencimento nesta data.</p>';
+    } else {
+        let html = '<ul style="list-style: none; padding: 0; margin: 0;">';
+        itens.forEach(t => {
+            const cor = t.tipo === 'entrada' ? '#10b981' : '#ef4444';
+            const statusText = t.status === 'quitado' ? '✅ Quitado' : '⏳ Pendente';
+            html += `
+                <li style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>${escaparHtml(t.descricao)}</strong><br>
+                        <small style="color: var(--text-secondary);">${escaparHtml(t.categoria)} | ${statusText}</small>
+                    </div>
+                    <span style="color: ${cor}; font-weight: bold;">R$ ${t.valor.toFixed(2)}</span>
+                </li>
+            `;
+        });
+        html += '</ul>';
+        corpo.innerHTML = html;
+    }
+
+    document.getElementById('modalDetalhesDia').style.display = 'flex';
+}
+
+function fecharModalDia() {
+    document.getElementById('modalDetalhesDia').style.display = 'none';
+}
+
+// AÇÕES E DEMAIS FUNÇÕES
+async function deletarTransacao(id) {
+    if (confirm("Tem certeza que deseja excluir esta transação?")) {
+        const { error } = await sb.from('transacoes').delete().eq('id', id);
+        if (!error) carregarTransacoes();
+    }
+}
+
+async function alternarStatusQuitado(id, statusAtual) {
+    const novoStatus = statusAtual === 'quitado' ? 'pendente' : 'quitado';
+    const { error } = await sb.from('transacoes').update({ status: novoStatus }).eq('id', id);
+    if (!error) carregarTransacoes();
+}
+
+function abrirModalEdicao(id) {
+    const item = transacoesCache.find(t => t.id === id);
+    if (!item) return;
+
+    document.getElementById('editId').value = item.id;
+    document.getElementById('editDesc').value = item.descricao;
+    document.getElementById('editValor').value = item.valor;
+    document.getElementById('editData').value = item.data;
+    document.getElementById('editCategoria').value = item.categoria;
+    document.getElementById('editStatus').value = item.status || 'pendente';
+
+    document.getElementById('modalEdicao').style.display = 'flex';
+}
+
+function fecharModalEdicao() {
+    document.getElementById('modalEdicao').style.display = 'none';
+}
+
+async function salvarEdicaoTransacao(e) {
+    e.preventDefault();
+
+    const id = document.getElementById('editId').value;
+    const novosDados = {
+        descricao: document.getElementById('editDesc').value,
+        valor: parseFloat(document.getElementById('editValor').value),
+        data: document.getElementById('editData').value,
+        vencimento: document.getElementById('editData').value,
+        categoria: document.getElementById('editCategoria').value,
+        status: document.getElementById('editStatus').value
+    };
+
+    const { error } = await sb.from('transacoes').update(novosDados).eq('id', id);
+
+    if (!error) {
+        fecharModalEdicao();
+        carregarTransacoes();
+    }
+}
+
 function desenharGrafico(dadosCategorias) {
     const canvas = document.getElementById('meuGrafico');
     if (!canvas) return;

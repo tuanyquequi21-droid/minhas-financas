@@ -2,11 +2,14 @@
 // Insira a URL e a Key pública do seu projeto Supabase abaixo se ainda não estiverem configuradas globalmente:
 const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabaseClient.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q';
-const supabaseClient = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+
+// Inicialização sem conflito de nomes
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioAtual = null;
 let transacoesCache = [];
-let mesSelecionado = new Date().toISOString().slice(0, 7); // Formato YYYY-MM
+let mesSelecionado = new Date().toISOString().slice(0, 7);
 let tipoSelecionado = 'saida';
 
 // 🔄 INICIALIZAÇÃO
@@ -22,6 +25,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 async function executarLogin() {
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginSenha').value;
+
+    if (!email || !password) return alert('Preencha o e-mail e a senha.');
 
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) return alert('Erro no login: ' + error.message);
@@ -40,14 +45,13 @@ function mostrarSistema() {
     document.getElementById('appContainer').style.display = 'block';
     document.getElementById('userDisplayTag').innerText = `👤 ${usuarioAtual.email}`;
     
-    // Define a data atual como padrão do input de vencimento
     document.getElementById('cadVencimento').value = new Date().toISOString().slice(0, 10);
 
     gerarSeletorMeses();
     carregarTransacoes();
 }
 
-// 🔀 TOGGLES DE FORMULÁRIO
+// 🔀 FORMATO DO FORMULÁRIO
 function selecionarTipo(tipo) {
     tipoSelecionado = tipo;
     document.getElementById('btnSaida').classList.toggle('active', tipo === 'saida');
@@ -84,9 +88,9 @@ function gerarSeletorMeses() {
     }
 }
 
-// 📦 BUSCAR DADOS
+// 📦 BUSCAR REGISTROS
 async function carregarTransacoes() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('transacoes')
         .select('*')
         .order('vencimento', { ascending: true });
@@ -97,7 +101,7 @@ async function carregarTransacoes() {
     renderizarDados();
 }
 
-// 💾 SALVAR LANÇAMENTO (ÚNICO, FIXO OU PARCELADO)
+// 💾 SALVAR REGISTRO (ÚNICO, FIXO OU PARCELADO)
 async function salvarLancamento(e) {
     e.preventDefault();
 
@@ -209,9 +213,9 @@ function renderizarDados() {
     elSaldo.style.color = saldo >= 0 ? 'var(--success)' : 'var(--danger)';
 }
 
-// 🟢/🔴 ALTERNAR STATUS PAGO/PENDENTE
+// 🟢/🔴 ALTERNAR PAGO / PENDENTE
 async function alternarPago(id, novoStatus) {
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('transacoes')
         .update({ pago: novoStatus })
         .eq('id', id);
@@ -227,7 +231,7 @@ async function alternarPago(id, novoStatus) {
 async function deletarItem(id) {
     if (!confirm('Deseja realmente remover este lançamento?')) return;
 
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('transacoes')
         .delete()
         .eq('id', id);

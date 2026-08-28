@@ -4,148 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle Financeiro</title>
+    <!-- Estilo Externo -->
+    <link rel="stylesheet" href="style.css?v=1.0">
+    <!-- SDK Oficial Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-color: #f8fafc;
-            --primary: #6366f1;
-            --success: #22c55e;
-            --danger: #ef4444;
-            --border: #334155;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        /* TELA DE LOGIN */
-        .login-card {
-            background: var(--card-bg);
-            padding: 30px;
-            border-radius: 12px;
-            max-width: 400px;
-            margin: 80px auto;
-            border: 1px solid var(--border);
-        }
-
-        /* CABEÇALHO E USUÁRIO */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        /* NAVEGAÇÃO DE MESES */
-        .tabs-container {
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
-
-        .tab-btn {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            color: var(--text-color);
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-
-        .tab-btn.active {
-            background: var(--primary);
-            border-color: var(--primary);
-        }
-
-        /* CARDS RESUMO */
-        .dashboard {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .card {
-            background: var(--card-bg);
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-        }
-
-        .card h4 { margin: 0 0 10px 0; font-size: 0.9rem; color: #94a3b8; }
-        .card p { margin: 0; font-size: 1.4rem; font-weight: bold; }
-
-        /* FORMULÁRIO */
-        .form-card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            margin-bottom: 25px;
-        }
-
-        .btn-tipo {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid var(--border);
-            background: transparent;
-            color: var(--text-color);
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        .btn-tipo.active#btnSaida { background: rgba(239, 68, 68, 0.2); border-color: var(--danger); }
-        .btn-tipo.active#btnEntrada { background: rgba(34, 197, 94, 0.2); border-color: var(--success); }
-
-        input, select {
-            background: #0f172a;
-            border: 1px solid var(--border);
-            color: var(--text-color);
-            padding: 10px;
-            border-radius: 6px;
-            box-sizing: border-box;
-        }
-
-        label { display: block; margin-bottom: 5px; font-size: 0.85rem; color: #94a3b8; }
-
-        /* TABELA */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--card-bg);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-
-        th { background: #0f172a; color: #94a3b8; font-size: 0.85rem; }
-
-        .btn-acao {
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-    </style>
 </head>
 <body>
 
@@ -153,40 +15,39 @@
         <!-- TELA DE LOGIN -->
         <div id="telaLogin" class="login-card">
             <h2>Entrar no Sistema</h2>
-            <div style="margin-bottom: 15px;">
+            <div class="form-group">
                 <label>E-mail</label>
-                <input type="email" id="loginEmail" style="width: 100%;" required>
+                <input type="email" id="loginEmail" required>
             </div>
-            <div style="margin-bottom: 20px;">
+            <div class="form-group">
                 <label>Senha</label>
-                <input type="password" id="loginSenha" style="width: 100%;" required>
+                <input type="password" id="loginSenha" required>
             </div>
-            <button onclick="executarLogin()" style="width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Entrar</button>
+            <button class="btn-primary" onclick="executarLogin()">Entrar</button>
         </div>
 
-        <!-- CONTEÚDO PRINCIPAL (OCULTO ANTES DO LOGIN) -->
+        <!-- APP PRINCIPAL -->
         <div id="appContainer" style="display: none;">
-            
             <div class="header">
                 <h2>Painel Financeiro</h2>
                 <div>
-                    <span id="userDisplayTag" style="margin-right: 15px; font-size: 0.9rem;"></span>
-                    <button onclick="deslogar()" style="background: transparent; border: 1px solid var(--border); color: var(--text-color); padding: 5px 10px; border-radius: 4px; cursor: pointer;">Sair</button>
+                    <span id="userDisplayTag"></span>
+                    <button class="btn-secondary" onclick="deslogar()">Sair</button>
                 </div>
             </div>
 
             <!-- CARROSSEL DE MESES -->
             <div id="tabsMeses" class="tabs-container"></div>
 
-            <!-- DASHBOARD DE TOTALIZADORES -->
+            <!-- DASHBOARD -->
             <div class="dashboard">
                 <div class="card">
                     <h4>Entradas</h4>
-                    <p id="dashEntradas" style="color: var(--success);">R$ 0,00</p>
+                    <p id="dashEntradas" class="txt-success">R$ 0,00</p>
                 </div>
                 <div class="card">
                     <h4>Saídas</h4>
-                    <p id="dashSaidas" style="color: var(--danger);">R$ 0,00</p>
+                    <p id="dashSaidas" class="txt-danger">R$ 0,00</p>
                 </div>
                 <div class="card">
                     <h4>Saldo do Mês</h4>
@@ -198,20 +59,20 @@
             <div class="form-card">
                 <h3>Cadastrar Movimentação</h3>
                 <form id="formCadastro" onsubmit="salvarLancamento(event)">
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <div class="row">
                         <button type="button" id="btnSaida" class="btn-tipo active" onclick="selecionarTipo('saida')">🔴 Saída / Despesa</button>
                         <button type="button" id="btnEntrada" class="btn-tipo" onclick="selecionarTipo('entrada')">🟢 Entrada / Receita</button>
                     </div>
 
-                    <div style="margin-bottom: 15px;">
+                    <div class="form-group">
                         <label>Descrição</label>
-                        <input type="text" id="cadDescricao" placeholder="Ex: Tio Léo, Mercado, Aluguel" required style="width: 100%;">
+                        <input type="text" id="cadDescricao" placeholder="Ex: Tio Léo, Mercado, Aluguel" required>
                     </div>
 
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <div style="flex: 1;">
+                    <div class="row">
+                        <div class="col">
                             <label>Categoria</label>
-                            <select id="cadCategoria" style="width: 100%;">
+                            <select id="cadCategoria">
                                 <option value="Transporte">Transporte</option>
                                 <option value="Moradia">Moradia</option>
                                 <option value="Alimentação">Alimentação</option>
@@ -220,38 +81,36 @@
                                 <option value="Outros">Outros</option>
                             </select>
                         </div>
-                        <div style="flex: 1;">
+                        <div class="col">
                             <label>Vencimento</label>
-                            <input type="date" id="cadVencimento" required style="width: 100%;">
+                            <input type="date" id="cadVencimento" required>
                         </div>
                     </div>
 
-                    <div style="margin-bottom: 15px;">
+                    <div class="form-group">
                         <label>Tipo de Lançamento</label>
-                        <select id="cadRecorrencia" onchange="alternarCampoParcelas()" style="width: 100%;">
+                        <select id="cadRecorrencia" onchange="alternarCampoParcelas()">
                             <option value="unico">Único (Apenas este mês)</option>
                             <option value="fixo">Fixo (Repete todo mês)</option>
                             <option value="parcelado">Parcelado (Dividido em meses)</option>
                         </select>
                     </div>
 
-                    <div id="boxParcelas" style="display: none; margin-bottom: 15px;">
+                    <div id="boxParcelas" class="form-group" style="display: none;">
                         <label>Número de Parcelas</label>
-                        <input type="number" id="cadTotalParcelas" min="2" max="72" value="2" style="width: 100%;">
+                        <input type="number" id="cadTotalParcelas" min="2" max="72" value="2">
                     </div>
 
-                    <div style="margin-bottom: 20px;">
+                    <div class="form-group">
                         <label>Valor (R$)</label>
-                        <input type="number" id="cadValor" step="0.01" placeholder="0,00" required style="width: 100%;">
+                        <input type="number" id="cadValor" step="0.01" placeholder="0,00" required>
                     </div>
 
-                    <button type="submit" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
-                        Salvar Lançamento
-                    </button>
+                    <button type="submit" class="btn-primary full-width">Salvar Lançamento</button>
                 </form>
             </div>
 
-            <!-- TABELA DE EXIBIÇÃO -->
+            <!-- TABELA -->
             <table>
                 <thead>
                     <tr>
@@ -265,10 +124,10 @@
                 </thead>
                 <tbody id="tabelaCorpo"></tbody>
             </table>
-
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <!-- Script com parâmetro de versão contra cache -->
+    <script src="app.js?v=1.0"></script>
 </body>
 </html>

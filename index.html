@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Meu Financeiro · Controle pessoal</title>
+  
+  <!-- Estilos e Fontes -->
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  
+  <!-- Supabase & ChartJS JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- ================= SEÇÃO DE LOGIN ================= -->
+  <div id="loginSection" class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h2>💰 Controle Financeiro</h2>
+        <p>Acesse sua conta para continuar</p>
+      </div>
+      
+      <form onsubmit="event.preventDefault(); fazerLogin();" class="auth-form">
+        <div class="form-group">
+          <label for="loginUsername">Usuário</label>
+          <input type="text" id="loginUsername" placeholder="Ex: marli ou tuany" required />
+        </div>
+        
+        <div class="form-group">
+          <label for="loginSenha">Senha</label>
+          <input type="password" id="loginSenha" placeholder="Digite sua senha" required />
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-block">Entrar no Sistema</button>
+      </form><button class="btn btn-secondary btn-block margin-top" onclick="location.search='?demo=1'">Conhecer com dados de exemplo</button><p class="muted margin-top">Controle mensal, parcelas e saldo em um só lugar.</p>
+    </div>
+  </div>
+
+  <!-- ================= SEÇÃO PRINCIPAL (APP) ================= -->
+  <div id="appSection" style="display: none;">
+    
+    <!-- BARRA SUPERIOR (HEADER) -->
+    <header class="app-header">
+      <div class="header-left">
+        <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+        <h1 class="brand-title">Meu Financeiro <small>V3</small></h1>
+      </div>
+      
+      <div class="header-right">
+        <button id="btnTema" class="btn-theme" onclick="alternarTema()">🌙 Escuro</button>
+        <span id="userDisplayTag" class="user-badge">@usuario</span>
+        <button class="btn-logout" onclick="deslogar()">Sair 🚪</button>
+      </div>
+    </header>
+
+    <!-- OVERLAY SIDEBAR -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleMenu()"></div>
+
+    <!-- MENU LATERAL (SIDEBAR) -->
+    <aside id="sidebar" class="sidebar">
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" onclick="navegarPara('dashboard')">
+          <span class="nav-icon">📊</span> Dashboard
+        </a>
+        <a href="#" class="nav-item" onclick="navegarPara('novoLancamento')">
+          <span class="nav-icon">➕</span> Novo Lançamento
+        </a>
+        <a href="#" class="nav-item" onclick="navegarPara('contas')">
+          <span class="nav-icon">🧾</span> Contas do Mês
+        </a>
+        <a href="#" class="nav-item" onclick="navegarPara('parcelas')">
+          <span class="nav-icon">💳</span> Parcelas e Dívidas
+        </a>
+        <a href="#" class="nav-item" onclick="navegarPara('historico')">
+          <span class="nav-icon">📜</span> Histórico Completo
+        </a>
+        <a href="#" class="nav-item" onclick="navegarPara('planejamento')"><span class="nav-icon">🎯</span> Planejamento</a>
+        <a href="#" class="nav-item" onclick="navegarPara('configuracoes')"><span class="nav-icon">⚙️</span> Ajustes e Dados</a>
+      </nav>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="main-content">
+      <div id="demoBanner" class="notice" hidden>Modo demonstração · dados de exemplo, sem conexão com seu banco. Alterações são descartadas ao recarregar. <a href="index.html">Voltar ao login</a></div>
+      <div id="mensagemApp" class="notice" role="status" hidden></div>
+      <div id="loadingApp" class="muted" hidden>Atualizando seus dados…</div>
+      
+      <!-- PAGE: DASHBOARD -->
+      <section id="pageDashboard" class="page-content active">
+        
+        <!-- BARRA DE SELEÇÃO DE MÊS PROJETADO (RESUMO FUTURO) -->
+        <div class="filter-card">
+          <div class="filter-group">
+            <label for="filtroMesDashboard">📅 <strong>Visualizar Mês Específico:</strong></label>
+            <input type="month" id="filtroMesDashboard" onchange="mudarMesReferencia(this.value)" required />
+          </div>
+        </div>
+
+<div class="balance-strip card"><div><span class="muted">Saldo anterior / inicial</span><strong id="saldoAnterior">R$ 0,00</strong></div><div><span class="muted">Entradas recebidas</span><strong id="entradasRecebidas">R$ 0,00</strong></div><div><span class="muted">Contas pagas</span><strong id="saidasPagas">R$ 0,00</strong></div></div>
+        <!-- CARDS DE RESUMO -->
+        <div class="dashboard-grid">
+          <div class="card card-summary entradas">
+            <div class="card-icon">📈</div>
+            <div class="card-info">
+              <span>Entradas previstas no mês</span>
+              <h3 id="totalEntradas">R$ 0,00</h3>
+            </div>
+          </div>
+
+          <div class="card card-summary saidas">
+            <div class="card-icon">📉</div>
+            <div class="card-info">
+              <span>Contas previstas no mês</span>
+              <h3 id="totalSaidas">R$ 0,00</h3>
+            </div>
+          </div>
+
+          <div class="card card-summary saldo">
+            <div class="card-icon">⚖️</div><div class="card-info"><span>Saldo Projetado</span><h3 id="saldoTotal">R$ 0,00</h3></div>
+          </div>
+          <div class="card card-summary realizadas">
+            <div class="card-icon">💵</div><div class="card-info"><span>Saldo disponível</span><h3 id="saldoRealizado">R$ 0,00</h3></div>
+          </div>
+          <div class="card card-summary pendencias">
+            <div class="card-icon">⏳</div><div class="card-info"><span>Ainda a Pagar</span><h3 id="totalPendente">R$ 0,00</h3></div>
+          </div>
+          <div class="card card-summary vencidas">
+            <div class="card-icon">⚠️</div><div class="card-info"><span>Vencidas até este mês</span><h3 id="totalVencido">R$ 0,00</h3></div>
+          </div>
+        </div>
+
+<p class="muted help-line">Disponível = saldo anterior + recebimentos − pagamentos reais. Projetado também considera pendências até o mês selecionado.</p>
+        <div class="card margin-top"><div class="card-header-flex"><h3>O que merece atenção</h3><button class="btn-sm" onclick="navegarPara('contas')">Ver contas</button></div><div id="alertasFinanceiros" class="alerts-list"></div></div>
+        <!-- GRÁFICO E CALENDÁRIO -->
+        <div class="grid-2-col">
+          <!-- CARD GRÁFICO -->
+          <div class="card">
+            <h3>Despesas por Categoria</h3>
+            <div class="chart-container">
+              <canvas id="meuGrafico"></canvas>
+            </div>
+          </div>
+
+          <!-- CARD CALENDÁRIO INTERATIVO -->
+          <div class="card">
+            <div class="calendar-header">
+              <button class="btn-sm" onclick="mudarMesCalendario(-1)">◀ Anterior</button>
+              <h3 id="calTituloMes">Mês/Ano</h3>
+              <button class="btn-sm" onclick="mudarMesCalendario(1)">Próximo ▶</button>
+            </div>
+            
+            <div class="calendar-grid-header">
+              <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
+            </div>
+            
+            <div id="calendarDays" class="calendar-days-grid"></div>
+          </div>
+        </div>
+
+        <!-- TABELA DE RESUMO DE LANÇAMENTOS DO MÊS SELECIONADO -->
+        <div class="card margin-top">
+          <h3>Lançamentos do Mês Selecionado</h3>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Data</th>
+                  <th>Descrição</th>
+                  <th>Categoria</th>
+                  <th>Tipo</th>
+                  <th>Valor</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaRegistros"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- PAGE: NOVO LANÇAMENTO -->
+      <section id="pageNovoLancamento" class="page-content">
+        <div class="card max-width-form">
+          <h2>Novo Lançamento</h2>
+          
+          <div class="type-selector">
+            <button id="btnEntrada" class="btn-type active" onclick="selecionarTipo('entrada')">📈 Entrada</button>
+            <button id="btnSaida" class="btn-type" onclick="selecionarTipo('saida')">📉 Saída</button>
+          </div>
+
+          <form id="formTransacao" onsubmit="salvarTransacao(event)">
+            <div class="form-group">
+              <label for="desc">Descrição</label>
+              <input type="text" id="desc" placeholder="Ex: Supermercado, Salário..." required />
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="valor" id="labelValor">Valor (R$)</label>
+                <input type="number" id="valor" step="0.01" min="0.01" placeholder="0,00" required />
+              </div>
+
+              <div class="form-group">
+                <label for="data">Data Inicial</label>
+                <input type="date" id="data" required />
+              </div>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="categoria">Categoria</label>
+                <select id="categoria" required>
+                  <option value="Alimentação">Alimentação</option>
+                  <option value="Moradia">Moradia</option>
+                  <option value="Transporte">Transporte</option>
+                  <option value="Lazer">Lazer</option>
+                  <option value="Saúde">Saúde</option>
+                  <option value="Salário">Salário</option>
+                  <option value="Investimentos">Investimentos</option>
+                  <option value="Outros">Outros</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="recorrencia">Tipo de Cobrança</label>
+                <select id="recorrencia" onchange="alternarCamposParcela()">
+                  <option value="unico">À Vista / Único</option>
+                  <option value="parcelado">Parcelado</option>
+                  <option value="fixo">Mensal / Recorrente Fixo</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="boxParcelas" class="form-group" style="display: none;">
+              <label for="totalParcelas">Quantidade de Parcelas</label>
+              <input type="number" id="totalParcelas" min="2" max="72" value="2" />
+            </div>
+
+<p id="ajudaRecorrencia" class="muted help-line"></p>
+            <div class="form-group"><label for="observacoes">Observações (opcional)</label><textarea id="observacoes" rows="2" placeholder="Detalhes, referência ou lembrete"></textarea></div>
+            <button type="submit" class="btn btn-primary btn-block margin-top">Salvar Lançamento</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- PAGE: CONTAS DO MÊS -->
+      <section id="pageContas" class="page-content">
+        <div class="page-title-row"><div><h2>🧾 Contas do Mês</h2><p class="muted">Acompanhe vencimentos, pagamentos e o que ainda falta pagar.</p></div></div>
+        <div class="card filters-grid">
+          <div class="form-group"><label>Mês</label><input type="month" id="contasMes" onchange="mudarMesContas()"></div>
+          <div class="form-group"><label>Status</label><select id="contasStatus" onchange="renderizarContasMes()"><option value="todos">Todos</option><option value="aberto">Todas em aberto</option><option value="pendente">A vencer</option><option value="pago">Pagos</option><option value="vencido">Vencidos</option></select></div>
+          <div class="form-group"><label>Categoria</label><select id="contasCategoria" onchange="renderizarContasMes()"><option value="todos">Todas</option></select></div>
+          <div class="form-group"><label>Buscar</label><input id="contasBusca" placeholder="Ex: aluguel, cartão..." oninput="renderizarContasMes()"></div>
+        </div>
+<div class="filter-card"><label><input type="checkbox" id="incluirAtrasadas" onchange="renderizarContasMes()" checked> Incluir pendências de meses anteriores</label><div class="form-group horizontal"><label for="contasTipo">Mostrar</label><select id="contasTipo" onchange="renderizarContasMes()"><option value="saida">Contas a pagar</option><option value="entrada">Entradas a receber</option><option value="todos">Entradas e saídas</option></select></div><button class="btn-sm" onclick="exportarCSV('contas')">Exportar lista</button></div>
+        <div class="dashboard-grid compact-grid">
+          <div class="card mini-stat"><span>Previsto</span><strong id="contasPrevisto">R$ 0,00</strong></div>
+          <div class="card mini-stat"><span>Pago</span><strong id="contasPago" class="txt-success">R$ 0,00</strong></div>
+          <div class="card mini-stat"><span>Pendente</span><strong id="contasPendente">R$ 0,00</strong></div>
+          <div class="card mini-stat"><span>Vencidas até este mês</span><strong id="contasVencido" class="txt-danger">R$ 0,00</strong></div>
+        </div>
+        <div class="card"><div class="table-responsive"><table class="data-table"><thead><tr><th>Status</th><th>Vencimento</th><th>Conta</th><th>Categoria</th><th>Parcela</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="tabelaContasMes"></tbody></table></div></div>
+      </section>
+
+      <!-- PAGE: PARCELAS E DÍVIDAS -->
+      <section id="pageParcelas" class="page-content">
+        <div class="page-title-row"><div><h2>💳 Parcelas e Dívidas</h2><p class="muted">Veja parcelas, quitações e contas fixas. Pagar um mês mantém os próximos lançamentos.</p></div></div>
+        <button class="btn btn-secondary margin-top" onclick="abrirAssociacao()">Organizar parcelas antigas</button><div id="listaParcelamentos" class="debt-grid"></div>
+      </section>
+
+      <!-- PAGE: HISTÓRICO COMPLETO -->
+      <section id="pageHistorico" class="page-content">
+        <div class="card">
+          <div class="card-header-flex">
+            <h2>Histórico de Registros</h2><button class="btn-sm" onclick="exportarCSV('historico')">Exportar CSV</button>
+            <div class="form-group horizontal">
+              <label for="filtroMes">Filtrar por Mês:</label>
+              <select id="filtroMes" onchange="renderizarDados()"></select>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Data</th>
+                  <th>Descrição</th>
+                  <th>Categoria</th>
+                  <th>Tipo</th>
+                  <th>Valor</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaHistoricoCorpo"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+<section id="pagePlanejamento" class="page-content">
+ <div class="page-title-row"><div><h2>Planejamento</h2><p class="muted">Veja o que já está comprometido e acompanhe limites de gastos.</p></div></div>
+ <div class="card"><div class="card-header-flex"><h3>Previsão dos próximos 6 meses</h3><input type="month" id="previsaoMes" onchange="mudarMesPrevisao()" required></div><p class="muted help-line">Projeção baseada nos lançamentos cadastrados. Nenhum salário futuro é presumido. Contas fixas são previstas enquanto ativas.</p><div class="table-responsive"><table class="data-table"><thead><tr><th>Mês</th><th>Entradas previstas</th><th>Contas previstas</th><th>Pendente do mês</th><th>Saldo projetado acumulado</th></tr></thead><tbody id="tabelaPrevisao"></tbody></table></div></div>
+ <div class="card margin-top"><div class="card-header-flex"><h3>Orçamento por categoria</h3><input type="month" id="orcamentoMes" onchange="renderizarPlanejamento()" required></div><p class="muted help-line">O limite considera as despesas previstas por vencimento, pagas ou pendentes; não muda o saldo disponível.</p><form class="filters-grid" onsubmit="salvarOrcamento(event)"><div class="form-group"><label for="orcamentoCategoria">Categoria</label><select id="orcamentoCategoria"></select></div><div class="form-group"><label for="orcamentoValor">Limite no mês (R$)</label><input id="orcamentoValor" type="number" min="0.01" step="0.01" required></div><button class="btn btn-primary" type="submit">Salvar limite</button></form><div id="listaOrcamentos"></div></div>
+ </section>
+ <section id="pageConfiguracoes" class="page-content">
+ <div class="page-title-row"><div><h2>Ajustes e Dados</h2><p class="muted">Defina seu ponto de partida e mantenha uma cópia do histórico.</p></div></div>
+ <div class="card max-width-form"><h3>Saldo inicial</h3><p class="muted help-line">Informe o dinheiro disponível antes dos movimentos da data inicial. Pagamentos anteriores a essa data ficam no histórico, mas não entram novamente no saldo.</p><form onsubmit="salvarConfiguracoes(event)"><div class="form-grid-2"><div class="form-group"><label for="configSaldo">Saldo inicial (R$)</label><input id="configSaldo" type="number" step="0.01" required></div><div class="form-group"><label for="configInicio">Data de início</label><input id="configInicio" type="date" required></div></div><button class="btn btn-primary" type="submit">Salvar saldo inicial</button></form></div>
+ <div class="card margin-top"><h3>Backup e exportação</h3><p class="muted help-line">O CSV abre em planilhas. O JSON preserva os dados e serve como cópia de segurança para conferência ou recuperação técnica.</p><button class="btn btn-secondary" onclick="exportarCSV('todos')">Exportar todos em CSV</button> <button class="btn btn-secondary" onclick="exportarBackup()">Baixar backup JSON</button></div>
+ <div class="card margin-top"><h3>Lixeira</h3><p class="muted help-line">Exclusões ficam guardadas e podem ser restauradas. Uma parcela excluída não é gerada novamente automaticamente.</p><div id="listaLixeira"></div></div>
+ <div class="card margin-top"><h3>Como funciona</h3><p class="muted help-line">Pago/Recebido: apenas este lançamento. Quitado: a dívida inteira foi encerrada. Conta fixa: continua nos meses seguintes até você encerrar a recorrência. O mês da saída de dinheiro vem da data real do pagamento; a lista de contas usa o vencimento.</p></div>
+ </section>
+    </main>
+  </div>
+
+  <!-- ================= MODAIS ================= -->
+
+  <!-- MODAL: DETALHES DO DIA DO CALENDÁRIO -->
+  <div id="modalDetalhesDia" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalDiaTitulo">
+    <div class="modal-content">
+      <h3 id="modalDiaTitulo">Lançamentos do Dia</h3>
+      <div id="modalDiaCorpo" class="modal-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="fecharModalDia()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIÇÃO DE LANÇAMENTO -->
+  <div id="modalEdicao" class="modal" role="dialog" aria-modal="true" aria-label="Editar lançamento">
+    <div class="modal-content">
+      <h3>Editar Lançamento</h3>
+      <form onsubmit="salvarEdicaoTransacao(event)">
+        <input type="hidden" id="editId" />
+        
+        <div class="form-group">
+          <label for="editDesc">Descrição</label>
+          <input type="text" id="editDesc" required />
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label for="editValor">Valor (R$)</label>
+            <input type="number" id="editValor" step="0.01" required />
+          </div>
+
+          <div class="form-group">
+            <label for="editData">Data</label>
+            <input type="date" id="editData" required />
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label for="editCategoria">Categoria</label>
+            <select id="editCategoria" required>
+              <option value="Alimentação">Alimentação</option>
+              <option value="Moradia">Moradia</option>
+              <option value="Transporte">Transporte</option>
+              <option value="Lazer">Lazer</option>
+              <option value="Saúde">Saúde</option>
+              <option value="Salário">Salário</option>
+              <option value="Investimentos">Investimentos</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="editStatus">Status</label>
+            <select id="editStatus" onchange="atualizarStatusEdicao()">
+              <option value="pendente">Pendente ⏳</option>
+              <option value="pago">Pago / Recebido ✅</option>
+            </select>
+          </div>
+        </div>
+
+<div class="form-grid-2"><div class="form-group"><label for="editPagamento">Data real do pagamento (se pago)</label><input id="editPagamento" type="date"></div><div class="form-group"><label for="editValorPago">Valor realmente pago (R$)</label><input id="editValorPago" type="number" min="0.01" step="0.01"></div></div><div class="form-group"><label for="editObs">Observações</label><textarea id="editObs" rows="2"></textarea></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="fecharModalEdicao()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<div id="modalPagamento" class="modal" role="dialog" aria-modal="true" aria-labelledby="pagamentoTitulo"><div class="modal-content"><h3 id="pagamentoTitulo">Registrar pagamento</h3><p id="pagamentoDetalhe" class="muted help-line"></p><form onsubmit="confirmarPagamento(event)"><input type="hidden" id="pagamentoId"><div class="form-grid-2"><div class="form-group"><label for="pagamentoData">Data real</label><input type="date" id="pagamentoData" required></div><div class="form-group"><label for="pagamentoValor">Valor real (R$)</label><input type="number" id="pagamentoValor" min="0.01" step="0.01" required></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="fecharModal('modalPagamento')">Cancelar</button><button class="btn btn-primary" type="submit">Confirmar</button></div></form></div></div>
+ <div id="modalQuitacao" class="modal" role="dialog" aria-modal="true" aria-labelledby="quitacaoTitulo"><div class="modal-content"><h3 id="quitacaoTitulo">Quitar dívida inteira</h3><p id="quitacaoDetalhe" class="muted help-line"></p><form onsubmit="confirmarQuitacao(event)"><input type="hidden" id="quitacaoGrupo"><div class="form-grid-2"><div class="form-group"><label for="quitacaoData">Data da quitação</label><input type="date" id="quitacaoData" required></div><div class="form-group"><label for="quitacaoValor">Valor realmente pago (R$)</label><input type="number" id="quitacaoValor" min="0.01" step="0.01" required></div></div><p class="notice">Esta ação substitui todas as parcelas pendentes por um único pagamento. As parcelas já pagas são preservadas. Informe o valor negociado, incluindo desconto ou juros.</p><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="fecharModal('modalQuitacao')">Cancelar</button><button class="btn btn-primary" type="submit">Confirmar quitação</button></div></form></div></div>
+ <div id="modalAssociacao" class="modal" role="dialog" aria-modal="true" aria-labelledby="associacaoTitulo"><div class="modal-content modal-wide"><h3 id="associacaoTitulo">Organizar lançamentos antigos</h3><p class="muted help-line">Selecione apenas lançamentos da mesma compra ou conta fixa. Para parcelas, selecione o conjunto completo. Nomes iguais não garantem que sejam a mesma compra.</p><form onsubmit="confirmarAssociacao(event)"><div class="form-grid-2"><div class="form-group"><label for="grupoNome">Nome da conta</label><input id="grupoNome" required></div><div class="form-group"><label for="grupoModalidade">Tipo</label><select id="grupoModalidade" onchange="renderizarAssociacao()"><option value="parcelado">Parcelada</option><option value="fixo">Fixa mensal</option></select></div></div><div id="itensAssociacao" class="association-list"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="fecharModal('modalAssociacao')">Cancelar</button><button class="btn btn-primary" type="submit">Vincular selecionados</button></div></form></div></div>
+<div id="modalRecorrencia" class="modal" role="dialog" aria-modal="true" aria-labelledby="recorrenciaTitulo"><div class="modal-content"><h3 id="recorrenciaTitulo">Encerrar conta fixa</h3><p id="recorrenciaDetalhe" class="muted help-line"></p><form onsubmit="confirmarEncerramento(event)"><input type="hidden" id="encerrarGrupo"><div class="form-group"><label for="encerrarMes">Último mês em que a conta deve existir</label><input type="month" id="encerrarMes" required></div><p class="notice">Os meses seguintes serão encerrados. Esta ação não marca a conta como paga. Pagamentos e pendências anteriores continuam no histórico.</p><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="fecharModal('modalRecorrencia')">Cancelar</button><button type="submit" class="btn btn-primary">Encerrar recorrência</button></div></form></div></div>
+  <!-- Scripts JavaScript -->
+  <script src="config.js"></script>
+  <script src="finance-core.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

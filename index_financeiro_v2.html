@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sistema de Controle Financeiro</title>
+  
+  <!-- Estilos e Fontes -->
+  <link rel="stylesheet" href="style_financeiro_v2.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  
+  <!-- Supabase & ChartJS JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- ================= SEÇÃO DE LOGIN ================= -->
+  <div id="loginSection" class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h2>💰 Controle Financeiro</h2>
+        <p>Acesse sua conta para continuar</p>
+      </div>
+      
+      <form onsubmit="event.preventDefault(); fazerLogin();" class="auth-form">
+        <div class="form-group">
+          <label for="loginUsername">Usuário</label>
+          <input type="text" id="loginUsername" placeholder="Ex: marli ou tuany" required />
+        </div>
+        
+        <div class="form-group">
+          <label for="loginSenha">Senha</label>
+          <input type="password" id="loginSenha" placeholder="Digite sua senha" required />
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-block">Entrar no Sistema</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= SEÇÃO PRINCIPAL (APP) ================= -->
+  <div id="appSection" style="display: none;">
+    
+    <!-- BARRA SUPERIOR (HEADER) -->
+    <header class="app-header">
+      <div class="header-left">
+        <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+        <h1 class="brand-title">Sistema Financeiro</h1>
+      </div>
+      
+      <div class="header-right">
+        <button id="btnTema" class="btn-theme" onclick="alternarTema()">🌙 Escuro</button>
+        <span id="userDisplayTag" class="user-badge">@usuario</span>
+        <button class="btn-logout" onclick="deslogar()">Sair 🚪</button>
+      </div>
+    </header>
+
+    <!-- OVERLAY SIDEBAR -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleMenu()"></div>
+
+    <!-- MENU LATERAL (SIDEBAR) -->
+    <aside id="sidebar" class="sidebar">
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" onclick="navegarPara('dashboard')">
+          <span class="nav-icon">📊</span> Dashboard
+        </a>
+        <a href="#" class="nav-item" onclick="navegarPara('novoLancamento')">
+          <span class="nav-icon">➕</span> Novo Lançamento
+        </a>
+        <a href="#" class="nav-item" onclick="navegarPara('contas')">
+          <span class="nav-icon">🧾</span> Contas do Mês
+        </a>
+        <a href="#" class="nav-item" onclick="navegarPara('parcelas')">
+          <span class="nav-icon">💳</span> Parcelas e Dívidas
+        </a>
+        <a href="#" class="nav-item" onclick="navegarPara('historico')">
+          <span class="nav-icon">📜</span> Histórico Completo
+        </a>
+      </nav>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="main-content">
+      
+      <!-- PAGE: DASHBOARD -->
+      <section id="pageDashboard" class="page-content active">
+        
+        <!-- BARRA DE SELEÇÃO DE MÊS PROJETADO (RESUMO FUTURO) -->
+        <div class="filter-card">
+          <div class="filter-group">
+            <label for="filtroMesDashboard">📅 <strong>Visualizar Mês Específico:</strong></label>
+            <input type="month" id="filtroMesDashboard" onchange="renderizarDados()" />
+          </div>
+        </div>
+
+        <!-- CARDS DE RESUMO -->
+        <div class="dashboard-grid">
+          <div class="card card-summary entradas">
+            <div class="card-icon">📈</div>
+            <div class="card-info">
+              <span>Total Entradas</span>
+              <h3 id="totalEntradas">R$ 0,00</h3>
+            </div>
+          </div>
+
+          <div class="card card-summary saidas">
+            <div class="card-icon">📉</div>
+            <div class="card-info">
+              <span>Total Saídas</span>
+              <h3 id="totalSaidas">R$ 0,00</h3>
+            </div>
+          </div>
+
+          <div class="card card-summary saldo">
+            <div class="card-icon">⚖️</div><div class="card-info"><span>Saldo Projetado</span><h3 id="saldoTotal">R$ 0,00</h3></div>
+          </div>
+          <div class="card card-summary realizadas">
+            <div class="card-icon">💵</div><div class="card-info"><span>Saldo Realizado</span><h3 id="saldoRealizado">R$ 0,00</h3></div>
+          </div>
+          <div class="card card-summary pendencias">
+            <div class="card-icon">⏳</div><div class="card-info"><span>Ainda a Pagar</span><h3 id="totalPendente">R$ 0,00</h3></div>
+          </div>
+          <div class="card card-summary vencidas">
+            <div class="card-icon">⚠️</div><div class="card-info"><span>Vencido</span><h3 id="totalVencido">R$ 0,00</h3></div>
+          </div>
+        </div>
+
+        <!-- GRÁFICO E CALENDÁRIO -->
+        <div class="grid-2-col">
+          <!-- CARD GRÁFICO -->
+          <div class="card">
+            <h3>Despesas por Categoria</h3>
+            <div class="chart-container">
+              <canvas id="meuGrafico"></canvas>
+            </div>
+          </div>
+
+          <!-- CARD CALENDÁRIO INTERATIVO -->
+          <div class="card">
+            <div class="calendar-header">
+              <button class="btn-sm" onclick="mudarMesCalendario(-1)">◀ Anterior</button>
+              <h3 id="calTituloMes">Mês/Ano</h3>
+              <button class="btn-sm" onclick="mudarMesCalendario(1)">Próximo ▶</button>
+            </div>
+            
+            <div class="calendar-grid-header">
+              <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
+            </div>
+            
+            <div id="calendarDays" class="calendar-days-grid"></div>
+          </div>
+        </div>
+
+        <!-- TABELA DE RESUMO DE LANÇAMENTOS DO MÊS SELECIONADO -->
+        <div class="card margin-top">
+          <h3>Lançamentos do Mês Selecionado</h3>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Data</th>
+                  <th>Descrição</th>
+                  <th>Categoria</th>
+                  <th>Tipo</th>
+                  <th>Valor</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaRegistros"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- PAGE: NOVO LANÇAMENTO -->
+      <section id="pageNovoLancamento" class="page-content">
+        <div class="card max-width-form">
+          <h2>Novo Lançamento</h2>
+          
+          <div class="type-selector">
+            <button id="btnEntrada" class="btn-type active" onclick="selecionarTipo('entrada')">📈 Entrada</button>
+            <button id="btnSaida" class="btn-type" onclick="selecionarTipo('saida')">📉 Saída</button>
+          </div>
+
+          <form id="formTransacao" onsubmit="salvarTransacao(event)">
+            <div class="form-group">
+              <label for="desc">Descrição</label>
+              <input type="text" id="desc" placeholder="Ex: Supermercado, Salário..." required />
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="valor">Valor Total (R$)</label>
+                <input type="number" id="valor" step="0.01" min="0.01" placeholder="0,00" required />
+              </div>
+
+              <div class="form-group">
+                <label for="data">Data Inicial</label>
+                <input type="date" id="data" required />
+              </div>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="categoria">Categoria</label>
+                <select id="categoria" required>
+                  <option value="Alimentação">Alimentação</option>
+                  <option value="Moradia">Moradia</option>
+                  <option value="Transporte">Transporte</option>
+                  <option value="Lazer">Lazer</option>
+                  <option value="Saúde">Saúde</option>
+                  <option value="Salário">Salário</option>
+                  <option value="Investimentos">Investimentos</option>
+                  <option value="Outros">Outros</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="recorrencia">Tipo de Cobrança</label>
+                <select id="recorrencia" onchange="alternarCamposParcela()">
+                  <option value="unico">À Vista / Único</option>
+                  <option value="parcelado">Parcelado</option>
+                  <option value="fixo">Mensal / Recorrente Fixo</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="boxParcelas" class="form-group" style="display: none;">
+              <label for="totalParcelas">Quantidade de Parcelas</label>
+              <input type="number" id="totalParcelas" min="2" max="72" value="2" />
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block margin-top">Salvar Lançamento</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- PAGE: CONTAS DO MÊS -->
+      <section id="pageContas" class="page-content">
+        <div class="page-title-row"><div><h2>🧾 Contas do Mês</h2><p class="muted">Acompanhe vencimentos, pagamentos e o que ainda falta pagar.</p></div></div>
+        <div class="card filters-grid">
+          <div class="form-group"><label>Mês</label><input type="month" id="contasMes" onchange="renderizarContasMes()"></div>
+          <div class="form-group"><label>Status</label><select id="contasStatus" onchange="renderizarContasMes()"><option value="todos">Todos</option><option value="pendente">Pendentes</option><option value="pago">Pagos</option><option value="vencido">Vencidos</option></select></div>
+          <div class="form-group"><label>Categoria</label><select id="contasCategoria" onchange="renderizarContasMes()"><option value="todos">Todas</option></select></div>
+          <div class="form-group"><label>Buscar</label><input id="contasBusca" placeholder="Ex: aluguel, cartão..." oninput="renderizarContasMes()"></div>
+        </div>
+        <div class="dashboard-grid compact-grid">
+          <div class="card mini-stat"><span>Previsto</span><strong id="contasPrevisto">R$ 0,00</strong></div>
+          <div class="card mini-stat"><span>Pago</span><strong id="contasPago" class="txt-success">R$ 0,00</strong></div>
+          <div class="card mini-stat"><span>Pendente</span><strong id="contasPendente">R$ 0,00</strong></div>
+          <div class="card mini-stat"><span>Vencido</span><strong id="contasVencido" class="txt-danger">R$ 0,00</strong></div>
+        </div>
+        <div class="card"><div class="table-responsive"><table class="data-table"><thead><tr><th>Status</th><th>Vencimento</th><th>Conta</th><th>Categoria</th><th>Parcela</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="tabelaContasMes"></tbody></table></div></div>
+      </section>
+
+      <!-- PAGE: PARCELAS E DÍVIDAS -->
+      <section id="pageParcelas" class="page-content">
+        <div class="page-title-row"><div><h2>💳 Parcelas e Dívidas</h2><p class="muted">Veja compras parceladas, progresso e saldo futuro.</p></div></div>
+        <div id="listaParcelamentos" class="debt-grid"></div>
+      </section>
+
+      <!-- PAGE: HISTÓRICO COMPLETO -->
+      <section id="pageHistorico" class="page-content">
+        <div class="card">
+          <div class="card-header-flex">
+            <h2>Histórico de Registros</h2>
+            <div class="form-group horizontal">
+              <label for="filtroMes">Filtrar por Mês:</label>
+              <select id="filtroMes" onchange="renderizarDados()"></select>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Data</th>
+                  <th>Descrição</th>
+                  <th>Categoria</th>
+                  <th>Tipo</th>
+                  <th>Valor</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaHistoricoCorpo"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ================= MODAIS ================= -->
+
+  <!-- MODAL: DETALHES DO DIA DO CALENDÁRIO -->
+  <div id="modalDetalhesDia" class="modal">
+    <div class="modal-content">
+      <h3 id="modalDiaTitulo">Lançamentos do Dia</h3>
+      <div id="modalDiaCorpo" class="modal-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="fecharModalDia()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIÇÃO DE LANÇAMENTO -->
+  <div id="modalEdicao" class="modal">
+    <div class="modal-content">
+      <h3>Editar Lançamento</h3>
+      <form onsubmit="salvarEdicaoTransacao(event)">
+        <input type="hidden" id="editId" />
+        
+        <div class="form-group">
+          <label for="editDesc">Descrição</label>
+          <input type="text" id="editDesc" required />
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label for="editValor">Valor (R$)</label>
+            <input type="number" id="editValor" step="0.01" required />
+          </div>
+
+          <div class="form-group">
+            <label for="editData">Data</label>
+            <input type="date" id="editData" required />
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label for="editCategoria">Categoria</label>
+            <select id="editCategoria" required>
+              <option value="Alimentação">Alimentação</option>
+              <option value="Moradia">Moradia</option>
+              <option value="Transporte">Transporte</option>
+              <option value="Lazer">Lazer</option>
+              <option value="Saúde">Saúde</option>
+              <option value="Salário">Salário</option>
+              <option value="Investimentos">Investimentos</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="editStatus">Status</label>
+            <select id="editStatus">
+              <option value="pendente">Pendente ⏳</option>
+              <option value="quitado">Quitado ✅</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="fecharModalEdicao()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts JavaScript -->
+  <script src="config.js"></script>
+  <script src="app_financeiro_v2.js"></script>
+</body>
+</html>

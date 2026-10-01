@@ -6,7 +6,7 @@
   <title>Sistema de Controle Financeiro</title>
   
   <!-- Estilos e Fontes -->
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style_financeiro_v2.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   
   <!-- Supabase & ChartJS JS Client -->
@@ -68,6 +68,12 @@
         <a href="#" class="nav-item" onclick="navegarPara('novoLancamento')">
           <span class="nav-icon">➕</span> Novo Lançamento
         </a>
+        <a href="#" class="nav-item" onclick="navegarPara('contas')">
+          <span class="nav-icon">🧾</span> Contas do Mês
+        </a>
+        <a href="#" class="nav-item" onclick="navegarPara('parcelas')">
+          <span class="nav-icon">💳</span> Parcelas e Dívidas
+        </a>
         <a href="#" class="nav-item" onclick="navegarPara('historico')">
           <span class="nav-icon">📜</span> Histórico Completo
         </a>
@@ -107,11 +113,16 @@
           </div>
 
           <div class="card card-summary saldo">
-            <div class="card-icon">⚖️</div>
-            <div class="card-info">
-              <span>Saldo Projetado</span>
-              <h3 id="saldoTotal">R$ 0,00</h3>
-            </div>
+            <div class="card-icon">⚖️</div><div class="card-info"><span>Saldo Projetado</span><h3 id="saldoTotal">R$ 0,00</h3></div>
+          </div>
+          <div class="card card-summary realizadas">
+            <div class="card-icon">💵</div><div class="card-info"><span>Saldo Realizado</span><h3 id="saldoRealizado">R$ 0,00</h3></div>
+          </div>
+          <div class="card card-summary pendencias">
+            <div class="card-icon">⏳</div><div class="card-info"><span>Ainda a Pagar</span><h3 id="totalPendente">R$ 0,00</h3></div>
+          </div>
+          <div class="card card-summary vencidas">
+            <div class="card-icon">⚠️</div><div class="card-info"><span>Vencido</span><h3 id="totalVencido">R$ 0,00</h3></div>
           </div>
         </div>
 
@@ -227,6 +238,30 @@
         </div>
       </section>
 
+      <!-- PAGE: CONTAS DO MÊS -->
+      <section id="pageContas" class="page-content">
+        <div class="page-title-row"><div><h2>🧾 Contas do Mês</h2><p class="muted">Acompanhe vencimentos, pagamentos e o que ainda falta pagar.</p></div></div>
+        <div class="card filters-grid">
+          <div class="form-group"><label>Mês</label><input type="month" id="contasMes" onchange="renderizarContasMes()"></div>
+          <div class="form-group"><label>Status</label><select id="contasStatus" onchange="renderizarContasMes()"><option value="todos">Todos</option><option value="pendente">Pendentes</option><option value="pago">Pagos</option><option value="vencido">Vencidos</option></select></div>
+          <div class="form-group"><label>Categoria</label><select id="contasCategoria" onchange="renderizarContasMes()"><option value="todos">Todas</option></select></div>
+          <div class="form-group"><label>Buscar</label><input id="contasBusca" placeholder="Ex: aluguel, cartão..." oninput="renderizarContasMes()"></div>
+        </div>
+        <div class="dashboard-grid compact-grid">
+          <div class="card mini-stat"><span>Previsto</span><strong id="contasPrevisto">R$ 0,00</strong></div>
+          <div class="card mini-stat"><span>Pago</span><strong id="contasPago" class="txt-success">R$ 0,00</strong></div>
+          <div class="card mini-stat"><span>Pendente</span><strong id="contasPendente">R$ 0,00</strong></div>
+          <div class="card mini-stat"><span>Vencido</span><strong id="contasVencido" class="txt-danger">R$ 0,00</strong></div>
+        </div>
+        <div class="card"><div class="table-responsive"><table class="data-table"><thead><tr><th>Status</th><th>Vencimento</th><th>Conta</th><th>Categoria</th><th>Parcela</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="tabelaContasMes"></tbody></table></div></div>
+      </section>
+
+      <!-- PAGE: PARCELAS E DÍVIDAS -->
+      <section id="pageParcelas" class="page-content">
+        <div class="page-title-row"><div><h2>💳 Parcelas e Dívidas</h2><p class="muted">Veja compras parceladas, progresso e saldo futuro.</p></div></div>
+        <div id="listaParcelamentos" class="debt-grid"></div>
+      </section>
+
       <!-- PAGE: HISTÓRICO COMPLETO -->
       <section id="pageHistorico" class="page-content">
         <div class="card">
@@ -330,6 +365,6 @@
 
   <!-- Scripts JavaScript -->
   <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script src="app_financeiro_v2.js"></script>
 </body>
 </html>

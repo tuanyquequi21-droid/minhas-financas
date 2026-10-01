@@ -1,8 +1,8 @@
-// --- 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE ---
 // Insira a URL e a Key pública do seu projeto Supabase abaixo se ainda não estiverem configuradas globalmente:
 const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q';
-// --- 1. CONFIGURAÇÃO E CONEXÃO COM O SUPABASE ---
+
+
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let usuarioLogado = null;
@@ -39,9 +39,17 @@ function navegarPara(paginaId) {
     } else if (paginaId === 'novoLancamento') {
         document.getElementById('pageNovoLancamento').classList.add('active');
         if (navItems[1]) navItems[1].classList.add('active');
+    } else if (paginaId === 'contas') {
+        document.getElementById('pageContas').classList.add('active');
+        if (navItems[2]) navItems[2].classList.add('active');
+        prepararContasMes(); renderizarContasMes();
+    } else if (paginaId === 'parcelas') {
+        document.getElementById('pageParcelas').classList.add('active');
+        if (navItems[3]) navItems[3].classList.add('active');
+        renderizarParcelamentos();
     } else if (paginaId === 'historico') {
         document.getElementById('pageHistorico').classList.add('active');
-        if (navItems[2]) navItems[2].classList.add('active');
+        if (navItems[4]) navItems[4].classList.add('active');
     }
 
     document.getElementById('sidebar').classList.remove('open');
@@ -299,7 +307,17 @@ function renderizarDados() {
 
     if (elEntradas) elEntradas.innerText = `R$ ${totEntradas.toFixed(2)}`;
     if (elSaidas) elSaidas.innerText = `R$ ${totSaidas.toFixed(2)}`;
-    if (elSaldo) elSaldo.innerText = `R$ ${(totEntradas - totSaidas).toFixed(2)}`;
+    if (elSaldo) elSaldo.innerText = moeda(totEntradas - totSaidas);
+
+    const hoje = hojeISO();
+    const entradasRealizadas = registrosDashboard.filter(t => t.tipo === 'entrada' && t.status === 'quitado').reduce((a,t)=>a+Number(t.valor||0),0);
+    const saidasPagas = registrosDashboard.filter(t => t.tipo === 'saida' && t.status === 'quitado').reduce((a,t)=>a+Number(t.valor||0),0);
+    const saidasPendentes = registrosDashboard.filter(t => t.tipo === 'saida' && t.status !== 'quitado').reduce((a,t)=>a+Number(t.valor||0),0);
+    const saidasVencidas = registrosDashboard.filter(t => t.tipo === 'saida' && t.status !== 'quitado' && (t.vencimento||t.data) < hoje).reduce((a,t)=>a+Number(t.valor||0),0);
+    setTexto('saldoRealizado', moeda(entradasRealizadas-saidasPagas));
+    setTexto('totalPendente', moeda(saidasPendentes));
+    setTexto('totalVencido', moeda(saidasVencidas));
+    renderizarContasMes(); renderizarParcelamentos();
 
     desenharGrafico(catMap);
     renderizarCalendario();
@@ -542,3 +560,30 @@ function alternarTema() {
 // INICIALIZAÇÃO
 aplicarTemaSalvo();
 verificarSessao();
+
+// ================= V2: GESTÃO DE CONTAS E PARCELAS =================
+function moeda(v){ return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function hojeISO(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function setTexto(id,valor){ const el=document.getElementById(id); if(el) el.textContent=valor; }
+function dataBR(v){ if(!v) return '-'; const p=v.split('T')[0].split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:v; }
+function statusFinanceiro(t){ if(t.status==='quitado') return 'pago'; const v=t.vencimento||t.data; return v && v<hojeISO()?'vencido':'pendente'; }
+function prepararContasMes(){
+  const mes=document.getElementById('contasMes'); if(mes&&!mes.value){ const d=new Date(); mes.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+  const cat=document.getElementById('contasCategoria'); if(cat){ const atual=cat.value||'todos'; const cats=[...new Set(transacoesCache.filter(t=>t.tipo==='saida').map(t=>t.categoria).filter(Boolean))].sort(); cat.innerHTML='<option value="todos">Todas</option>'+cats.map(c=>`<option value="${escaparHtml(c)}">${escaparHtml(c)}</option>`).join(''); if([...cat.options].some(o=>o.value===atual))cat.value=atual; }
+}
+function renderizarContasMes(){
+  const tbody=document.getElementById('tabelaContasMes'); if(!tbody)return; prepararContasMes();
+  const mes=document.getElementById('contasMes').value, filtro=document.getElementById('contasStatus').value, categoria=document.getElementById('contasCategoria').value, busca=document.getElementById('contasBusca').value.trim().toLowerCase();
+  let itens=transacoesCache.filter(t=>t.tipo==='saida' && (t.vencimento||t.data||'').startsWith(mes));
+  const previsto=itens.reduce((a,t)=>a+Number(t.valor||0),0), pago=itens.filter(t=>statusFinanceiro(t)==='pago').reduce((a,t)=>a+Number(t.valor||0),0), vencido=itens.filter(t=>statusFinanceiro(t)==='vencido').reduce((a,t)=>a+Number(t.valor||0),0);
+  setTexto('contasPrevisto',moeda(previsto));setTexto('contasPago',moeda(pago));setTexto('contasPendente',moeda(previsto-pago));setTexto('contasVencido',moeda(vencido));
+  itens=itens.filter(t=>(filtro==='todos'||statusFinanceiro(t)===filtro)&&(categoria==='todos'||t.categoria===categoria)&&(!busca||(t.descricao||'').toLowerCase().includes(busca))).sort((a,b)=>(a.vencimento||a.data).localeCompare(b.vencimento||b.data));
+  tbody.innerHTML=itens.length?itens.map(t=>{ const st=statusFinanceiro(t), label=st==='pago'?'Pago ✅':st==='vencido'?'Vencido ⚠️':'Pendente ⏳'; const parcela=t.recorrencia==='parcelado'?`${t.parcela_atual||'-'}/${t.total_parcelas||'-'}`:(t.recorrencia==='fixo'?'Fixa':'—'); return `<tr><td><span class="status-badge ${st==='pago'?'quitado':st}">${label}</span></td><td>${dataBR(t.vencimento||t.data)}</td><td>${escaparHtml(t.descricao)}</td><td>${escaparHtml(t.categoria)}</td><td>${parcela}</td><td>${moeda(t.valor)}</td><td><div class="actions-cell">${st!=='pago'?`<button class="btn-pay" onclick="marcarComoPago('${t.id}')">✓ Pagar</button>`:`<button class="btn-sm" onclick="alternarStatusQuitado('${t.id}','quitado')">Desfazer</button>`}<button class="btn-icon" onclick="abrirModalEdicao('${t.id}')">✏️</button><button class="btn-icon" onclick="deletarTransacao('${t.id}')">🗑️</button></div></td></tr>`}).join(''):'<tr><td colspan="7" class="muted">Nenhuma conta encontrada para os filtros selecionados.</td></tr>';
+}
+async function marcarComoPago(id){ const {error}=await sb.from('transacoes').update({status:'quitado'}).eq('id',id); if(error) return alert('Erro ao marcar como pago: '+error.message); carregarTransacoes(); }
+function renderizarParcelamentos(){
+  const box=document.getElementById('listaParcelamentos'); if(!box)return; const itens=transacoesCache.filter(t=>t.tipo==='saida'&&t.recorrencia==='parcelado');
+  const grupos={}; itens.forEach(t=>{ const nome=(t.descricao||'').replace(/\s*\(\d+\/\d+\)\s*$/,'').trim(); const key=`${nome}|${t.categoria}|${t.total_parcelas}`; (grupos[key]??=[]).push(t); });
+  const cards=Object.values(grupos).map(g=>{g.sort((a,b)=>(a.parcela_atual||0)-(b.parcela_atual||0)); const total=g.reduce((a,t)=>a+Number(t.valor||0),0), pagos=g.filter(t=>t.status==='quitado'), pago=pagos.reduce((a,t)=>a+Number(t.valor||0),0), restante=total-pago, pct=total?Math.round(pago/total*100):0, prox=g.find(t=>t.status!=='quitado'); const nome=(g[0].descricao||'').replace(/\s*\(\d+\/\d+\)\s*$/,''); return `<div class="debt-card"><div class="debt-head"><div><strong>${escaparHtml(nome)}</strong><div class="muted">${escaparHtml(g[0].categoria||'')}</div></div><strong>${pct}%</strong></div><div class="progress"><span style="width:${pct}%"></span></div><div class="debt-meta"><span>Parcelas pagas: <b>${pagos.length}/${g.length}</b></span><span>Restante: <b>${moeda(restante)}</b></span><span>Total: <b>${moeda(total)}</b></span><span>Próx. vencimento: <b>${prox?dataBR(prox.vencimento||prox.data):'Quitado'}</b></span></div></div>`; });
+  box.innerHTML=cards.length?cards.join(''):'<div class="card muted">Nenhum parcelamento cadastrado.</div>';
+}

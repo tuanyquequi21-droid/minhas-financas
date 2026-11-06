@@ -66,7 +66,8 @@ async function tabelaTodos(tabela){
 async function carregarTransacoes(){
  if(!usuarioLogado)return;const version=++loadVersion;$('loadingApp').hidden=false;
  try{
-  const refs=['filtroMesDashboard','contasMes','previsaoMes'].map(id=>$(id).value||hojeISO().slice(0,7)).sort();
+  const calendarRef=`${dataCalendarioAtual.getFullYear()}-${String(dataCalendarioAtual.getMonth()+1).padStart(2,'0')}`;
+  const refs=['filtroMesDashboard','contasMes','previsaoMes'].map(id=>$(id).value||hojeISO().slice(0,7)).concat(calendarRef).sort();
   const ate=F.addMonths(refs.at(-1)+'-01',5);
   if(demo)materializarDemo(ate);else{
    const {error}=await sb.rpc('financeiro_materializar',{ate_mes:ate});if(error)throw error;
@@ -195,7 +196,7 @@ async function salvarConfiguracoes(e){e.preventDefault();const data={saldo_inici
 function download(name,content,type){const url=URL.createObjectURL(new Blob([content],{type})),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function exportarCSV(scope){let rows=transacoesCache.filter(t=>!t.excluido_em);if(scope==='contas')rows=contasFiltradas();if(scope==='historico'&&$('filtroMes').value!=='todos')rows=rows.filter(t=>F.month(F.due(t))===$('filtroMes').value);download(`financeiro-${scope}-${hojeISO()}.csv`,F.csv(rows),'text/csv;charset=utf-8');}
 function exportarBackup(){download(`backup-financeiro-${hojeISO()}.json`,JSON.stringify({versao:3,exportado_em:new Date().toISOString(),config:configCache,transacoes:transacoesCache,grupos:gruposCache,orcamentos:orcamentosCache},null,2),'application/json');}
-function mudarMesCalendario(delta){dataCalendarioAtual.setDate(1);dataCalendarioAtual.setMonth(dataCalendarioAtual.getMonth()+delta);renderizarCalendario();}
+async function mudarMesCalendario(delta){dataCalendarioAtual.setDate(1);dataCalendarioAtual.setMonth(dataCalendarioAtual.getMonth()+delta);await carregarTransacoes();}
 function renderizarCalendario(){
  const y=dataCalendarioAtual.getFullYear(),m=dataCalendarioAtual.getMonth(),title=new Date(y,m,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
  setTexto('calTituloMes',title);let html='';for(let i=0;i<new Date(y,m,1).getDay();i++)html+='<div class="cal-day empty"></div>';

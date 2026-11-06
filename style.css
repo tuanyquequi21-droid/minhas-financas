@@ -579,3 +579,22 @@ input:focus, select:focus {
 @media(max-width:400px){.filters-grid,.dashboard-grid{grid-template-columns:1fr}.header-right{gap:5px}}
 
 .offline-chart{height:100%;display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap}.donut{width:170px;height:170px;border-radius:50%;display:grid;place-items:center;flex-shrink:0}.donut>div{width:125px;height:125px;border-radius:50%;background:var(--bg-card);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px}.donut strong{font-size:16px}.chart-legend{display:flex;align-items:center;gap:7px;margin:8px 0;font-size:11px}.chart-legend i{width:9px;height:9px;border-radius:50%}.chart-legend strong{margin-left:auto}#graficoAlternativo{height:100%}
+
+
+/* Ajustes de usabilidade para telas pequenas */
+@media(max-width:520px){
+  .app-header{padding:10px 12px;gap:8px}
+  .header-left,.header-right{gap:6px}
+  .brand-title{font-size:15px}
+  .btn-theme,.btn-logout{padding:6px 8px;font-size:12px}
+  .calendar-grid-header{font-size:.68rem}
+  .calendar-days-grid{gap:3px}
+  .cal-day{min-height:42px;padding:3px;border-radius:4px}
+  .cal-day-num{font-size:.7rem}
+  .cal-event-item{font-size:.56rem;padding:1px 2px}
+  .cal-events{gap:1px}
+  .modal{padding:8px}
+  .modal-content{width:100%;max-height:94vh;padding:16px}
+  .data-table th,.data-table td{padding:8px;font-size:.8rem}
+  .actions-cell{gap:5px;flex-wrap:wrap}
+}

@@ -1,7 +1,8 @@
-// Insira a URL e a Key pública do seu projeto Supabase abaixo se ainda não estiverem configuradas globalmente:
-const SUPABASE_URL = 'https://iecdvnsvnobpxqnusitw.supabase.co'; 
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY2R2bnN2bm9icHhxbnVzaXR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MzEyODQsImV4cCI6MjA5ODUwNzI4NH0.sh55ms3OxevckA3OlbF_vl00j8E6CmTWKfG4bQYhj0Q';
-
+// Configuração pública do Supabase carregada por config.js.
+// A chave anon/publishable é destinada ao navegador; nunca use service_role aqui.
+const financeConfig = window.FINANCE_CONFIG || {};
+const SUPABASE_URL = financeConfig.url || '';
+const SUPABASE_KEY = financeConfig.anonKey || '';
 
 'use strict';
 const F=FinanceCore;
@@ -130,15 +131,14 @@ function contasFiltradas(){
  .filter(t=>(status==='todos'||(status==='aberto'?!F.paid(t):statusFinanceiro(t)===status))&&(category==='todos'||t.categoria===category)&&(!query||`${t.descricao} ${t.observacoes||''}`.toLowerCase().includes(query))).sort((a,b)=>F.due(a).localeCompare(F.due(b)));
 }
 function renderizarContasMes(){
- const ref=$('contasMes').value;const type=$('contasTipo').value;
- const base=transacoesCache.filter(t=>F.live(t)&&(type==='todos'||t.tipo===type)&&(F.month(F.due(t))===ref||($('incluirAtrasadas').checked&&!F.paid(t)&&F.month(F.due(t))<ref)));
+ const base=contasFiltradas();
  const total=base.reduce((s,t)=>s+F.amount(t),0),paid=base.filter(F.paid).reduce((s,t)=>s+F.paidAmount(t),0),open=base.filter(t=>!F.paid(t)).reduce((s,t)=>s+F.amount(t),0),late=base.filter(t=>statusFinanceiro(t)==='vencido').reduce((s,t)=>s+F.amount(t),0);
  for(const [id,v]of Object.entries({contasPrevisto:total,contasPago:paid,contasPendente:open,contasVencido:late}))setTexto(id,dinheiro(v));
  $('tabelaContasMes').innerHTML=contasFiltradas().map(t=>`<tr><td>${badge(t)}</td><td>${dataBR(F.due(t))}</td><td>${escaparHtml(t.descricao)}${F.month(F.due(t))<ref?'<div class="txt-danger">Mês anterior</div>':''}${t.tipo==='entrada'?'<div class="txt-success">Entrada</div>':''}${F.paid(t)?`<div class="muted">${dataBR(F.paidDate(t))} · ${dinheiro(F.paidAmount(t))}</div>`:''}</td><td>${escaparHtml(t.categoria)}</td><td>${t.recorrencia==='parcelado'?`${t.parcela_atual}/${t.total_parcelas}`:t.recorrencia==='fixo'?'Fixa':'Única'}</td><td>${moeda(t.valor)}</td><td>${acoesLinha(t)}</td></tr>`).join('')||emptyRow(7,'Nenhuma conta encontrada para estes filtros.');
 }
 function renderizarAlertas(ref){
- const end=F.addMonths(ref+'-01',1),pending=transacoesCache.filter(t=>F.live(t)&&t.tipo==='saida'&&!F.paid(t)&&F.due(t)<end).sort((a,b)=>F.due(a).localeCompare(F.due(b)));
- $('alertasFinanceiros').innerHTML=pending.slice(0,4).map(t=>`<div class="alert-row"><div><strong>${escaparHtml(t.descricao)}</strong><div class="muted">${dataBR(F.due(t))} · ${labelStatus(t)}</div></div><strong>${moeda(t.valor)}</strong><button class="btn-pay" onclick="marcarComoPago('${safeId(t.id)}')">Pagar</button></div>`).join('')||'<p class="muted">Tudo em dia até este mês. Nenhuma conta em aberto.</p>';
+ const end=F.addMonths(ref+'-01',1),pending=transacoesCache.filter(t=>F.live(t)&&!F.paid(t)&&F.due(t)<end).sort((a,b)=>F.due(a).localeCompare(F.due(b)));
+ $('alertasFinanceiros').innerHTML=pending.slice(0,4).map(t=>`<div class="alert-row"><div><strong>${escaparHtml(t.descricao)}</strong><div class="muted">${t.tipo==='entrada'?'A receber':'A pagar'} · ${dataBR(F.due(t))} · ${labelStatus(t)}</div></div><strong>${moeda(t.valor)}</strong><button class="btn-pay" onclick="marcarComoPago('${safeId(t.id)}')">${t.tipo==='entrada'?'Receber':'Pagar'}</button></div>`).join('')||'<p class="muted">Nenhuma pendência de entrada ou saída até este mês.</p>';
  const legacy=transacoesCache.filter(t=>!t.excluido_em&&t.tipo==='saida'&&t.recorrencia!=='unico'&&!t.grupo_id).length;
  if(legacy)$('alertasFinanceiros').innerHTML+=`<div class="alert-row"><span class="muted">${legacy} lançamentos antigos podem ser vinculados às suas contas.</span><button class="btn-sm" onclick="abrirAssociacao()">Conferir</button></div>`;
 }
@@ -269,7 +269,7 @@ async function executarDemo(action,a){
 }
 // Inicialização. Uma configuração ausente não impede a demonstração.
 aplicarTemaSalvo();selecionarTipo('entrada');
-if(!demo&&typeof SUPABASE_URL!=='undefined'&&typeof SUPABASE_KEY!=='undefined'&&window.supabase){try{sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);}catch{}}
+if(!demo&&SUPABASE_URL&&SUPABASE_KEY&&window.supabase){try{sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);}catch{}}
 if(!demo&&!sb){$('loginSection').appendChild($('mensagemApp'));avisar('Para usar sua conta, configure config.js. Você também pode conhecer o sistema com dados de exemplo.',true);}
 document.querySelectorAll('.nav-item').forEach(a=>a.addEventListener('click',e=>e.preventDefault()));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal').forEach(m=>fecharModal(m.id));});

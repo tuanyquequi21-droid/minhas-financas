@@ -1,10 +1,10 @@
+'use strict';
+
 // Configuração pública do Supabase carregada por config.js.
 // A chave anon/publishable é destinada ao navegador; nunca use service_role aqui.
 const financeConfig = window.FINANCE_CONFIG || {};
 const SUPABASE_URL = financeConfig.url || '';
 const SUPABASE_KEY = financeConfig.anonKey || '';
-
-'use strict';
 const F=FinanceCore;
 const demo=new URLSearchParams(location.search).get('demo')==='1';
 let sb=null, usuarioLogado=null, usernameAtual='', transacoesCache=[], gruposCache=[], orcamentosCache=[];

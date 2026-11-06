@@ -1,4 +1,6 @@
-// Copie para config.js e preencha com seu projeto Supabase.
-// Use a chave pública publishable/anon; nunca a chave service_role.
-const SUPABASE_URL = 'https://SEU-PROJETO.supabase.co';
-const SUPABASE_KEY = 'SUA-CHAVE-PUBLICA';
+// Copie este arquivo para config.js e informe os dados públicos do seu projeto Supabase.
+// Use apenas a chave anon/publishable. Nunca coloque service_role ou secret key no navegador.
+window.FINANCE_CONFIG = {
+  url: 'https://SEU-PROJETO.supabase.co',
+  anonKey: 'SUA-CHAVE-PUBLICA'
+};
